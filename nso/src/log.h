@@ -2,6 +2,7 @@
 #define __LOG_H__
 
 #include "config.h"
+#include <stdio.h>
 
 #if defined(LOG_DEBUG_ON)
     #define LOG_DEBUG(fmt, ...)

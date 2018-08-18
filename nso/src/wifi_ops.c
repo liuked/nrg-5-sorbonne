@@ -2,13 +2,11 @@
 #include "log.h"
 #include <arpa/inet.h>
 #include <linux/if_packet.h>
-#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <net/if.h>
-#include <net/ethernet.h>
 #include <unistd.h>
 
 /* interface handle will be returned by handle argument*/
@@ -22,6 +20,8 @@ int wifi_open(char *name, nic_handle_t **ret_handle) {
         LOG_INFO("opening socket for %s is failed\n", name);
         return -1;
     }
+
+    //TODO: set promisc mode here
 
     //set reuseaddr option for socket
     int opt = 1;
@@ -63,7 +63,7 @@ int wifi_open(char *name, nic_handle_t **ret_handle) {
     }
 
     //set mac of handle
-    memcpy(handle->if_mac, (char*)&if_mac.ifr_hwaddr.sa_data, MAC_ADDR_LEN);
+    memcpy(handle->if_mac, (char*)&if_mac.ifr_hwaddr.sa_data, ETH_ALEN);
 
     strcpy(handle->name, name);
 
@@ -81,33 +81,67 @@ int wifi_close(nic_handle_t *handle) {
     return 0;
 }
 
-int wifi_send(nic_handle_t *handle, packet_t *pkt) {
+int wifi_send(nic_handle_t *handle, packet_t *pkt, l2addr_t *dst) {
     wifi_handle_t *wifi_handle = (wifi_handle_t*)handle;
     struct sockaddr_ll sock_addr;
     memset(&sock_addr, 0, sizeof(sock_addr));
     sock_addr.sll_family = AF_PACKET;
     sock_addr.sll_ifindex = wifi_handle->if_index;
-    sock_addr.sll_halen = MAC_ADDR_LEN;
+    sock_addr.sll_halen = ETH_ALEN;
+
+    if (pkt->data - pkt->buf < sizeof(struct ethhdr)) {
+        LOG_DEBUG("(%s): headroom is not enough\n", wifi_handle->name);
+        return -1;
+    }
     
-    struct ether_header *eth = (struct ether_header*)pkt->buf;
-    memcpy(sock_addr.sll_addr, eth->ether_dhost, MAC_ADDR_LEN);
+    //add ethernet header
+    struct ethhdr *eth = (struct ethhdr*)(pkt->data - sizeof(struct ethhdr));
+    memcpy(eth->h_source, wifi_handle->if_mac, ETH_ALEN);
+    memcpy(eth->h_dest, dst->addr, ETH_ALEN);
+    eth->h_proto = htons(ETH_TYPE_NSO);
+    pkt->data = (uint8_t*)eth;
+    pkt->byte_len += sizeof(struct ethhdr);
+
+    memcpy(sock_addr.sll_addr, eth->h_dest, ETH_ALEN);
     
-    if (sendto(wifi_handle->sockfd, pkt->buf, pkt->byte_len, 0, (struct sockaddr*)&sock_addr, sizeof(sock_addr)) < 0) {
+    if (sendto(wifi_handle->sockfd, pkt->data, pkt->byte_len, 0, (struct sockaddr*)&sock_addr, sizeof(sock_addr)) < 0) {
         LOG_INFO("%s send packet failed\n", wifi_handle->name);
         return -1;
     }
     return 0;
 }
 
-int wifi_receive(nic_handle_t *handle, packet_t *pkt) {
+int wifi_receive(nic_handle_t *handle, packet_t *pkt, l2addr_t **src, l2addr_t **dst) {
     wifi_handle_t *wifi_handle = (wifi_handle_t*)handle;
-    int numbytes = recvfrom(wifi_handle->sockfd, pkt->buf, pkt->size, 0, NULL, NULL);
-    if (numbytes <= 0) {
-        LOG_INFO("%s is unable to receive a valid packet\n", wifi_handle->name);
+    if (pkt->data - pkt->buf < sizeof(struct ethhdr)) {
+        LOG_DEBUG("%s headroom of packet is not enough!\n", wifi_handle->name);
         return -1;
     }
-    pkt->byte_len = numbytes;
+    pkt->data -= sizeof(struct ethhdr);
+    int numbytes = recvfrom(wifi_handle->sockfd, pkt->data, pkt->size + sizeof(struct ethhdr), 0, NULL, NULL);
+    if (numbytes <= 0) {
+        LOG_INFO("%s is unable to receive a valid packet\n", wifi_handle->name);
+        goto err_ret;
+    }
+
+    //extract ethernet header
+    struct ethhdr *eth = (struct ethhdr*)pkt->data;
+    if(ntohs(eth->h_proto) != ETH_TYPE_NSO) {
+        memset(pkt->data, 0, numbytes);
+        goto err_ret;
+    } 
+
+    *src = alloc_l2addr(ETH_ALEN);
+    *dst = alloc_l2addr(ETH_ALEN);
+    memcpy((*src)->addr, eth->h_source, ETH_ALEN);
+    memcpy((*dst)->addr, eth->h_dest, ETH_ALEN);
+    pkt->data += sizeof(struct ethhdr);
+    pkt->byte_len = numbytes - sizeof(struct ethhdr);
     return 0;
+
+err_ret:
+    pkt->data += sizeof(struct ethhdr);
+    return -1;
 }
 
 int wifi_get_info(nic_handle_t *handle, nic_info_t *info) {

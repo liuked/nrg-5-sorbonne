@@ -6,18 +6,12 @@
 
 static char dst_mac[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
-static packet_t* prepare_packet(char *src_mac) {
+static packet_t* prepare_packet() {
     packet_t *pkt = alloc_packet(1024);
-    struct ether_header *eth = (struct ether_header*)pkt->buf;
-    memset(pkt->buf, 0, pkt->size);
-    memcpy(eth->ether_shost, src_mac, 6);
-    memcpy(eth->ether_dhost, dst_mac, 6);
-    eth->ether_type = htons(ETH_P_IP);
-    pkt->byte_len = sizeof(struct ether_header);
-    pkt->buf[pkt->byte_len++] = 0xde;
-    pkt->buf[pkt->byte_len++] = 0xad;
-    pkt->buf[pkt->byte_len++] = 0xbe;
-    pkt->buf[pkt->byte_len++] = 0xef;
+    pkt->data[pkt->byte_len++] = 0xde;
+    pkt->data[pkt->byte_len++] = 0xad;
+    pkt->data[pkt->byte_len++] = 0xbe;
+    pkt->data[pkt->byte_len++] = 0xef;
     return pkt;
 }
 
@@ -37,20 +31,25 @@ int main(int argc, char **argv) {
     }
 
     while (1) {
-        packet_t *pkt = prepare_packet(((wifi_handle_t*)handle)->if_mac);
-        //wifi_send(handle, pkt);
+        packet_t *pkt = prepare_packet();
+        l2addr_t *addr = alloc_l2addr(ETH_ALEN);
+        memcpy(addr->addr, dst_mac, ETH_ALEN);
+        wifi_send(handle, pkt, addr);
         free_packet(pkt);
+        free_l2addr(addr);
         pkt = alloc_packet(1024);
-        wifi_receive(handle, pkt);
+        l2addr_t *src, *dst;
+        wifi_receive(handle, pkt, &src, &dst);
         printf("received pkt %d bytes\n", pkt->byte_len);
-        struct ether_header *eth = (struct ether_header*)pkt->buf;
-#define smac(x) eth->ether_shost[x]
-#define dmac(x) eth->ether_dhost[x]
+#define smac(x) src->addr[x]
+#define dmac(x) dst->addr[x]
         printf("from %02X:%02X:%02X:%02X:%02X:%02X to %02X:%02X:%02X:%02X:%02X:%02X\n",
                 smac(0), smac(1), smac(2), smac(3), smac(4), smac(5),
                 dmac(0), dmac(1), dmac(2), dmac(3), dmac(4), dmac(5));
 #undef smac
 #undef dmac
+        free_l2addr(src);
+        free_l2addr(dst);
         free_packet(pkt);
     }
 
