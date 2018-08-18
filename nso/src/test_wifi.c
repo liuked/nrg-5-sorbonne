@@ -1,5 +1,7 @@
 #include "wifi_ops.h"
 #include "packet.h"
+#include "list.h"
+#include "hash_crc.h"
 #include <stdio.h>
 #include <net/ethernet.h>
 #include <arpa/inet.h>

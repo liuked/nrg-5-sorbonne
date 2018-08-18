@@ -1,6 +1,6 @@
 CFLAGS:= -g
 
-test_wifi: test_wifi.o wifi_ops.o
+test_wifi: test_wifi.o wifi_ops.o list.h hash_crc.h
 	gcc -o test_wifi test_wifi.o wifi_ops.o $(CFLAGS)
 
 test_wifi.o: packet.h nic_ops_intf.h wifi_ops.h
