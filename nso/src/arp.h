@@ -80,5 +80,5 @@ int arp_table_aging(arp_table_t*);
 //destroy
 void arp_table_destroy(arp_table_t*);
 //destroy & free memory of tbl allocated by malloc
-void arp_table_delete(arp_table_t *tbl);
+void arp_table_free(arp_table_t *tbl);
 #endif

@@ -136,10 +136,7 @@ void arp_table_destroy(arp_table_t *tbl) {
     pthread_mutex_destroy(&tbl->arpt_lock);
 }
 
-void arp_table_delete(arp_table_t *tbl) {
+void arp_table_free(arp_table_t *tbl) {
     arp_table_destroy(tbl);
     free(tbl);
 }
-
-#endif
-

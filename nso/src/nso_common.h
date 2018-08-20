@@ -5,7 +5,10 @@
 #include "hash_crc.h"
 #include <assert.h>
 
+
 typedef uint64_t device_id_t;
+
+#define DEV_ID_WIDTH sizeof(device_id_t)
 
 static device_id_t* alloc_device_id() {
     device_id_t *id = malloc(sizeof(device_id_t));
