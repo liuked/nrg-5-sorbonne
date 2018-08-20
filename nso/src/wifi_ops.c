@@ -18,7 +18,7 @@ int wifi_open(char *name, nic_handle_t **ret_handle) {
     handle->sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
     if (handle->sockfd == -1) {
         LOG_DEBUG("opening socket for %s is failed\n", name);
-        return -1;
+        goto err_ret_noclose;
     }
 
     //TODO: set promisc mode here
@@ -73,14 +73,18 @@ int wifi_open(char *name, nic_handle_t **ret_handle) {
     *ret_handle = (nic_handle_t*)handle;
     return 0;
 
+
 err_ret:
     close(handle->sockfd);
+err_ret_noclose:
+    free(handle);
     return -1;
 }
 
 int wifi_close(nic_handle_t *handle) {
     wifi_handle_t *wifi_handle = (wifi_handle_t*)handle;
     close(wifi_handle->sockfd);
+    free(wifi_handle);
     return 0;
 }
 
