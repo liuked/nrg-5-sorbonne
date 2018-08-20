@@ -32,7 +32,7 @@ int main(int argc, char **argv) {
 
     while (1) {
         packet_t *pkt = prepare_packet();
-        l2addr_t *addr = alloc_l2addr(ETH_ALEN);
+        l2addr_t *addr = alloc_l2addr(ETH_ALEN, NULL);
         memcpy(addr->addr, dst_mac, ETH_ALEN);
         wifi_send(handle, pkt, addr);
         free_packet(pkt);

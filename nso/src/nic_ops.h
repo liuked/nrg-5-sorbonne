@@ -16,7 +16,7 @@ typedef struct nic_info_s nic_info_t;
 typedef void nic_handle_t;
 
 struct nic_ops_s {
-    int (*open)(char *name, nic_handle_t *handle);
+    int (*open)(char *name, nic_handle_t **handle);
     int (*close)(nic_handle_t *handle);
     int (*send)(nic_handle_t *handle, packet_t *p, l2addr_t *dst);
     int (*receive)(nic_handle_t *handle, packet_t *p, l2addr_t **src, l2addr_t **dst);

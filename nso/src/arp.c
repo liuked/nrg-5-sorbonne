@@ -99,7 +99,6 @@ static inline void __arp_table_del_nolock(arp_table_t *tbl, arp_entry_t *e) {
 //aging
 int arp_table_aging(arp_table_t *tbl) {
     assert(tbl);
-    assert(e);
     //record entries which should be deleted
     arp_entry_t **rec = malloc(sizeof(arp_entry_t*) * tbl->size);
     int used = 0;

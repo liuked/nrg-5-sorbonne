@@ -9,7 +9,7 @@
 #include "list.h"
 #include <stdint.h>
 
-#define BUILD_BUG_ON_ZERO(e) (sizeof(struct { int:-!!(e) }))
+#define BUILD_BUG_ON_ZERO(e) (sizeof(struct { int:-!!(e); }))
 
 #define __same_type(a, b) __builtin_types_compatible_p(typeof(a), typeof(b))
 
@@ -231,20 +231,20 @@ static inline void __hash_init(struct hlist_head *ht, unsigned int sz)
  * hash_hashed - check whether an object is in any hashtable
  * @node: the &struct hlist_node of the object to be checked
  */
-static inline bool hash_hashed(struct hlist_node *node)
+static inline int hash_hashed(struct hlist_node *node)
 {
 	return !hlist_unhashed(node);
 }
 
-static inline bool __hash_empty(struct hlist_head *ht, unsigned int sz)
+static inline int __hash_empty(struct hlist_head *ht, unsigned int sz)
 {
 	unsigned int i;
 
 	for (i = 0; i < sz; i++)
 		if (!hlist_empty(&ht[i]))
-			return false;
+			return 0;
 
-	return true;
+	return 1;
 }
 
 /**

@@ -17,16 +17,21 @@ int wifi_open(char *name, nic_handle_t **ret_handle) {
     //open rawsocket for nic "name"
     handle->sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
     if (handle->sockfd == -1) {
-        LOG_INFO("opening socket for %s is failed\n", name);
+        LOG_DEBUG("opening socket for %s is failed\n", name);
         return -1;
     }
 
     //TODO: set promisc mode here
+    struct ifreq flags;
+    strcpy(flags.ifr_name, name);
+    ioctl(handle->sockfd, SIOCGIFFLAGS, &flags);
+    flags.ifr_flags |= IFF_PROMISC;
+    ioctl(handle->sockfd, SIOCSIFFLAGS, &flags);
 
     //set reuseaddr option for socket
     int opt = 1;
     if (setsockopt(handle->sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1) {
-        LOG_INFO("set reuse addr failed for socket of %s\n", name);
+        LOG_DEBUG("set reuse addr failed for socket of %s\n", name);
         goto err_ret;
     }
 
@@ -35,7 +40,7 @@ int wifi_open(char *name, nic_handle_t **ret_handle) {
     memset(&if_idx, 0, sizeof(if_idx));
     strcpy(if_idx.ifr_name, name);
     if (ioctl(handle->sockfd, SIOCGIFINDEX, &if_idx) < 0) {
-        LOG_INFO("unable to get index of nic %s\n", name);
+        LOG_DEBUG("unable to get index of nic %s\n", name);
         goto err_ret;
     }
 
@@ -46,7 +51,7 @@ int wifi_open(char *name, nic_handle_t **ret_handle) {
     sock_addr.sll_ifindex = if_idx.ifr_ifindex;
 
     if (bind(handle->sockfd, (const struct sockaddr*)&sock_addr, sizeof(sock_addr)) < 0) {
-        LOG_INFO("unable to bind %s with its' socket\n", name);
+        LOG_DEBUG("unable to bind %s with its' socket\n", name);
         goto err_ret;
     }
 
@@ -58,14 +63,12 @@ int wifi_open(char *name, nic_handle_t **ret_handle) {
     memset(&if_mac, 0, sizeof(if_mac));
     strcpy(if_mac.ifr_name, name);
     if (ioctl(handle->sockfd, SIOCGIFHWADDR, &if_mac) < 0) {
-        LOG_INFO("unable to get mac addr of %s\n", name);
+        LOG_DEBUG("unable to get mac addr of %s\n", name);
         goto err_ret;
     }
 
     //set mac of handle
     memcpy(handle->if_mac, (char*)&if_mac.ifr_hwaddr.sa_data, ETH_ALEN);
-
-    strcpy(handle->name, name);
 
     *ret_handle = (nic_handle_t*)handle;
     return 0;
@@ -90,7 +93,7 @@ int wifi_send(nic_handle_t *handle, packet_t *pkt, l2addr_t *dst) {
     sock_addr.sll_halen = ETH_ALEN;
 
     if (pkt->data - pkt->buf < sizeof(struct ethhdr)) {
-        LOG_DEBUG("(%s): headroom is not enough\n", wifi_handle->name);
+        LOG_DEBUG("headroom is not enough\n");
         return -1;
     }
     
@@ -105,7 +108,7 @@ int wifi_send(nic_handle_t *handle, packet_t *pkt, l2addr_t *dst) {
     memcpy(sock_addr.sll_addr, eth->h_dest, ETH_ALEN);
     
     if (sendto(wifi_handle->sockfd, pkt->data, pkt->byte_len, 0, (struct sockaddr*)&sock_addr, sizeof(sock_addr)) < 0) {
-        LOG_INFO("%s send packet failed\n", wifi_handle->name);
+        LOG_DEBUG("send packet failed\n");
         return -1;
     }
     return 0;
@@ -114,13 +117,13 @@ int wifi_send(nic_handle_t *handle, packet_t *pkt, l2addr_t *dst) {
 int wifi_receive(nic_handle_t *handle, packet_t *pkt, l2addr_t **src, l2addr_t **dst) {
     wifi_handle_t *wifi_handle = (wifi_handle_t*)handle;
     if (pkt->data - pkt->buf < sizeof(struct ethhdr)) {
-        LOG_DEBUG("%s headroom of packet is not enough!\n", wifi_handle->name);
+        LOG_DEBUG("headroom of packet is not enough!\n");
         return -1;
     }
     pkt->data -= sizeof(struct ethhdr);
     int numbytes = recvfrom(wifi_handle->sockfd, pkt->data, pkt->size + sizeof(struct ethhdr), 0, NULL, NULL);
     if (numbytes <= 0) {
-        LOG_INFO("%s is unable to receive a valid packet\n", wifi_handle->name);
+        LOG_DEBUG("unable to receive a valid packet\n");
         goto err_ret;
     }
 
@@ -131,10 +134,8 @@ int wifi_receive(nic_handle_t *handle, packet_t *pkt, l2addr_t **src, l2addr_t *
         goto err_ret;
     } 
 
-    *src = alloc_l2addr(ETH_ALEN);
-    *dst = alloc_l2addr(ETH_ALEN);
-    memcpy((*src)->addr, eth->h_source, ETH_ALEN);
-    memcpy((*dst)->addr, eth->h_dest, ETH_ALEN);
+    *src = alloc_l2addr(ETH_ALEN, eth->h_source);
+    *dst = alloc_l2addr(ETH_ALEN, eth->h_dest);
     pkt->data += sizeof(struct ethhdr);
     pkt->byte_len = numbytes - sizeof(struct ethhdr);
     return 0;
