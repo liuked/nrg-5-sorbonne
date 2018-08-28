@@ -58,8 +58,7 @@ static void free_fwd_entry(fwd_entry_t *e) {
 
 //4096 buckets
 #define FWDT_HASH_BITS 12
-
-//#define FWDT_THREAD_SAFE
+#define FWDT_THREAD_SAFE
 
 struct fwd_table_s {
     int size;

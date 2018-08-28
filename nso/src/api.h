@@ -4,6 +4,9 @@
 #include <stdint.h>
 #include "nso_common.h"
 
+#define ERROR_BASE -1
+#define ERROR_NOT_READY (ERROR_BASE - 1)
+
 typedef struct __attribute__((packed)) {
     uint8_t addr[DEV_ID_WIDTH];
 }nso_addr_t;
@@ -22,7 +25,7 @@ typedef struct __attribute__((packed)) {
  * @dest: destination address. @dest can be NULL, when this 
  *        packet is sent to base station.
  * @return: how many bytes that are sent successfully;
- *          -1 means a error occurs;
+ *          negative number means a error occurs.
  * */
 int nso_send(uint8_t *buf, int size, nso_addr_t *dest);
 
@@ -41,8 +44,8 @@ int nso_send(uint8_t *buf, int size, nso_addr_t *dest);
  *       It can be NULL, if the destination address is not
  *       useful.
  * @return: actual data size of the received data packet;
- *          0 means TODO;
- *          -1 means a error occurs;
+ *          0 means that #TODO#;
+ *          negative number means a error occurs.
  * */
 int nso_receive(uint8_t *buf, int size, nso_addr_t *src, nso_addr_t *dst);
 
@@ -51,7 +54,7 @@ int nso_receive(uint8_t *buf, int size, nso_addr_t *src, nso_addr_t *dst);
  * is supported by nso layer.
  * --------------------------------------------------------
  * @return: MTU;
- *          -1 means a error occurs;
+ *          negative number means a error occurs;
  * */
 int nso_get_mtu();
 

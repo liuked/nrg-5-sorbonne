@@ -8,7 +8,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-
 typedef uint64_t device_id_t;
 
 #define DEV_ID_WIDTH sizeof(device_id_t)
