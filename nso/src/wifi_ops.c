@@ -21,7 +21,7 @@ int wifi_open(char *name, nic_handle_t **ret_handle) {
         goto err_ret_noclose;
     }
 
-    //TODO: set promisc mode here
+    //set promisc mode here
     struct ifreq flags;
     strcpy(flags.ifr_name, name);
     ioctl(handle->sockfd, SIOCGIFFLAGS, &flags);
@@ -142,6 +142,7 @@ int wifi_receive(nic_handle_t *handle, packet_t *pkt, l2addr_t **src, l2addr_t *
     *dst = alloc_l2addr(ETH_ALEN, eth->h_dest);
     pkt->data += sizeof(struct ethhdr);
     pkt->byte_len = numbytes - sizeof(struct ethhdr);
+    pkt->tail = pkt->data + pkt->byte_len;
     return 0;
 
 err_ret:

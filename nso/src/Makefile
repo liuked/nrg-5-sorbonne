@@ -1,6 +1,10 @@
 CFLAGS:= -g
 LDFLAGS:= -lpthread
 
+
+test_nbr: test_nbr.o neighbor.o
+	gcc -o test_nbr test_nbr.o neighbor.o $(CFLAGS) $(LDFLAGS)
+
 test_fwding: test_fwding.o fwding.o
 	gcc -o test_fwd test_fwding.o fwding.o $(CFLAGS) $(LDFLAGS)
 
@@ -21,6 +25,10 @@ arp.o: arp.h
 test_fwding.o: fwding.h nso_if.h
 
 fwding.o: fwding.h
+
+test_nbr.o: neighbor.h nso_if.h
+
+neighbor.o: neighbor.h
 
 .PHONY: clean
 clean:

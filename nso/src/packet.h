@@ -30,12 +30,25 @@ static packet_t* alloc_packet(int size) {
     p->byte_len = 0;
     p->size = size;
     p->data = p->buf + HEADROOM;
-    p->tail = p->buf + HEADROOM + size;
+    p->tail = p->data;
     return p;
 }
 
 static void free_packet(packet_t *p) {
     if(p) free(p);
+}
+
+static int packet_append_data(packet_t *p, uint8_t *data, int size) {
+    assert(p);
+    assert(data);
+    if ((p->size - p->byte_len) < size) {
+        LOG_DEBUG("packet_append_data fail, don't have enough space\n");
+        return -1;
+    }
+    memcpy(p->data, data, size);
+    p->byte_len += size;
+    p->tail = p->data + p->byte_len;
+    return 0;
 }
 
 #endif

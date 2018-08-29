@@ -10,7 +10,6 @@
 
 #define NSO_MAX_SUPPORTED_IFACES 10
 
-
 typedef enum {
     NRG5_UNREG = 0,
     NRG5_REG = 1,
@@ -39,6 +38,9 @@ typedef struct {
 
     //device status
     device_status_e dev_state;
+    pthread_mutex_t state_lock;
+
+    //
 
 }nso_layer_t;
 
