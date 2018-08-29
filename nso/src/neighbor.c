@@ -35,7 +35,7 @@ int nbr_table_add(nbr_table_t *tbl, nbr_entry_t *e) {
     return 0;
 }
 //lookup entry from dev_id
-nbr_entry_t* nbr_table_lookup_from_dev_id(nbr_table_t *tbl, device_id_t *dev_id) {
+nbr_entry_t* nbr_table_lookup(nbr_table_t *tbl, device_id_t *dev_id) {
     assert(tbl);
     assert(dev_id);
 

@@ -34,9 +34,9 @@ void test() {
     res = nbr_table_lookup(tbl, key);
     assert(res == e2);
     
-    printf("dest: %llx, metric: %llx, if: %s, status: %s\n",
-            *(uint64_t*)res->dest, *(uint64_t*)res->metric.w,
-            res->interface->if_name,
+    printf("dest: %llx, metric: %d, if: %s, status: %s\n",
+            *(uint64_t*)res->dev_id, res->metric->w,
+            res->iface->if_name,
             res->status == NBR_ACTIVE ? "active": "expired");
 
     ID = 0x66667874U;
@@ -45,9 +45,9 @@ void test() {
     res = nbr_table_lookup(tbl, key);
     assert(res == e1);
     
-    printf("dest: %llx, metric: %llx, if: %s, status: %s\n",
-            *(uint64_t*)res->dest, *(uint64_t*)res->metric.w,
-            res->interface->if_name,
+    printf("dest: %llx, metric: %d, if: %s, status: %s\n",
+            *(uint64_t*)res->dev_id, res->metric->w,
+            res->iface->if_name,
             res->status == NBR_ACTIVE ? "active": "expired");
 
     nbr_table_aging(tbl);

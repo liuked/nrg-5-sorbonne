@@ -5,7 +5,7 @@
 #include <stdio.h>
 
 #if defined(LOG_DEBUG_ON)
-    #define LOG_DEBUG(fmt, ...)
+    #define LOG_DEBUG(fmt, ...) LOG_INFO(fmt, ...)
 #else
     #define LOG_DEBUG(fmt, ...)
 #endif

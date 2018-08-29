@@ -6,19 +6,17 @@
 
 #define NSO_PROTO_IP 0x0800
 #define NSO_PROTO_IPv6 0x86dd
-#define NSO_PROTO_CP_DEV_REG 0xF001
-#define NSO_PROTO_CP_DEV_REG_REPLY 0xF002
-#define NSO_PROTO_CP_TOPO_REPO 0xF003
-#define NSO_PROTO_CP_RT_UPDATE 0xF004
-
-#define NSO_PROTO_IS_CP(proto) ((proto & 0xFFF0) == 0xF000)
+#define NSO_PROTO_CP_VTSD 0xF000
+#define NSO_PROTO_CP_VSON 0xF001
+#define NSO_PROTO_IS_CP(proto) ((proto & 0xFFFE) == 0xF000)
 
 struct nsohdr {
     uint8_t src_devid[DEV_ID_WIDTH];
     uint8_t dst_devid[DEV_ID_WIDTH];
     uint16_t proto;
     //length including header size
-    uint16_t length;
+    uint16_t length: 14, //low 14 bits
+             ver: 2; //high 2 bits
 }__attribute__((packed));
 
 #endif

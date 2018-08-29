@@ -20,7 +20,7 @@ typedef struct {
 }metric_t;
 
 static metric_t* alloc_metric(int w) {
-    metric_t *m = malloc(sizeof(metric));
+    metric_t *m = malloc(sizeof(metric_t));
     if (!m) {
         LOG_DEBUG("alloc metric failed!\n");
         return NULL;
@@ -90,7 +90,7 @@ void nbr_table_init(nbr_table_t*);
 //add new entry
 int nbr_table_add(nbr_table_t*, nbr_entry_t*);
 //lookup entry from dev_id
-nbr_entry_t* nbr_table_lookup_from_dev_id(nbr_table_t*, device_id_t*);
+nbr_entry_t* nbr_table_lookup(nbr_table_t*, device_id_t*);
 //del entry
 int nbr_table_del(nbr_table_t*, nbr_entry_t*);
 //aging

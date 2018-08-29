@@ -40,6 +40,17 @@ static void assign_device_id(device_id_t *dev_id, uint8_t *val) {
     memcpy(dev_id, val, DEV_ID_WIDTH);
 }
 
+//broadcast device_id
+static inline device_id_t* alloc_bc_device_id() {
+    device_id_t *id = malloc(sizeof(device_id_t));
+    if (!id) {
+        LOG_DEBUG("alloc broadcast device id failed!\n");
+        return NULL;
+    }
+    *id = 0xffffffffffffffffULL;
+    return id;
+}
+
 static int device_id_equal(device_id_t *id1, device_id_t *id2) {
     return *id1 == *id2;
 }

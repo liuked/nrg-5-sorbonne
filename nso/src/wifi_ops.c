@@ -118,6 +118,14 @@ int wifi_send(nic_handle_t *handle, packet_t *pkt, l2addr_t *dst) {
     return 0;
 }
 
+int wifi_broadcast(nic_handle_t *handle, packet_t *pkt) {
+    uint8_t bc_mac[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+    l2addr_t *addr = alloc_l2addr(ETH_ALEN, bc_mac);
+    int ret = wifi_send(handle, pkt, addr);
+    free_l2addr(addr);
+    return ret;
+}
+
 int wifi_receive(nic_handle_t *handle, packet_t *pkt, l2addr_t **src, l2addr_t **dst) {
     wifi_handle_t *wifi_handle = (wifi_handle_t*)handle;
     if (pkt->data - pkt->buf < sizeof(struct ethhdr)) {

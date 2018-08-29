@@ -1,12 +1,13 @@
 CFLAGS:= -g
 LDFLAGS:= -lpthread
 
+test: test_nbr test_fwding test_arp test_wifi
 
-test_nbr: test_nbr.o neighbor.o
-	gcc -o test_nbr test_nbr.o neighbor.o $(CFLAGS) $(LDFLAGS)
+test_nbr: test_nbr.o neighbor.o wifi_ops.o
+	gcc -o test_nbr test_nbr.o neighbor.o wifi_ops.o $(CFLAGS) $(LDFLAGS)
 
-test_fwding: test_fwding.o fwding.o
-	gcc -o test_fwd test_fwding.o fwding.o $(CFLAGS) $(LDFLAGS)
+test_fwding: test_fwding.o fwding.o wifi_ops.o
+	gcc -o test_fwd test_fwding.o fwding.o wifi_ops.o $(CFLAGS) $(LDFLAGS)
 
 test_arp: test_arp.o arp.o
 	gcc -o test_arp test_arp.o arp.o $(CFLAGS) $(LDFLAGS)
@@ -32,4 +33,4 @@ neighbor.o: neighbor.h
 
 .PHONY: clean
 clean:
-	- rm -rf test_wifi *.o test_arp test_fwd
+	- rm -rf test_wifi *.o test_arp test_fwd test_nbr

@@ -16,7 +16,6 @@ typedef enum {
     NRG5_CONNECTED = 2,
 }device_status_e;
 
-
 typedef struct {
     
     //interface list
@@ -39,10 +38,24 @@ typedef struct {
     //device status
     device_status_e dev_state;
     pthread_mutex_t state_lock;
+    pthread_cond_t state_signal;
 
-    //
+    //self id
+    device_id_t *dev_id;
+
+    //thread handle
+    //rx thread: for receiving packets from ifaces
+    pthread_t rx_pid;
+    //tx thread: for sending control plane packets to xMEC
+    pthread_t tx_pid;
+    //aging thread: for aging tables
+    pthread_t aging_pid;
 
 }nso_layer_t;
 
+static nso_layer_t nso_layer;
+
+int nso_layer_run(char *config_file);
+int nso_layer_stop();
 
 #endif
