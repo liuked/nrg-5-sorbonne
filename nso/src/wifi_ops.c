@@ -70,6 +70,13 @@ int wifi_open(char *name, nic_handle_t **ret_handle) {
     //set mac of handle
     memcpy(handle->if_mac, (char*)&if_mac.ifr_hwaddr.sa_data, ETH_ALEN);
 
+    //get mtu
+    if (ioctl(handle->sockfd, SIOCGIFMTU, &if_mac) < 0) {
+        LOG_DEBUG("unable to get mtu if %s\n", name);
+        goto err_ret;
+    }
+    handle->if_mtu = if_mac.ifr_mtu;
+
     *ret_handle = (nic_handle_t*)handle;
     return 0;
 
@@ -159,5 +166,7 @@ err_ret:
 }
 
 int wifi_get_info(nic_handle_t *handle, nic_info_t *info) {
+    wifi_handle_t *wifi_hdl = (wifi_handle_t*)handle;
+    info->mtu = wifi_hdl->if_mtu;
     return 0;
 }

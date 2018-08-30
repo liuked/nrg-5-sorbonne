@@ -1,8 +1,11 @@
 #include "nso.h"
+#include "nso_tsd.h"
+#include "nso_son.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include "util.h"
 
 /*
  * @config_file format: 
@@ -84,11 +87,23 @@ static int __nso_layer_init(char *config_file) {
 
     //open all interfaces
     int i;
+    nic_info_t info;
+    nso_layer.mtu = -1;
     for (i = 0; i < nso_layer.ifaces_nb; i++) {
         if (nso_if_open(nso_layer.ifaces[i])) {
             goto err_close_if;
         }
+        //get mtu here
+        nso_if_get_info(nso_layer.ifaces[i], &info);
+        nso_layer.mtu = nso_layer.mtu > info.mtu ? nso_layer.mtu: info.mtu;
     }
+
+    nso_layer.timeout_ms = NSO_DEFAULT_TIMEOUT_MS;
+    nso_layer.aging_period_ms = NSO_DEFAULT_AGING_PERIOD_MS;
+    nso_layer.sr_period_ms = NSO_DEFAULT_SON_REPORT_PERIOD_MS;
+
+    tsd_init();
+
     //init success
     fclose(fp);
     return 0;
@@ -125,26 +140,34 @@ static void* __rx_thread_main(void *arg) {
 
 static void* __tx_thread_main(void *arg) {
     //register
+    struct timespec timeout;
     pthread_mutex_lock(&nso_layer.state_lock);
+
+restart_registration:
     while (nso_layer.dev_state == NRG5_UNREG) {
         pthread_mutex_unlock(&nso_layer.state_lock);
         //broadcast
-
+        tsd_broadcast_beacons();
         //wait for registration success
         pthread_mutex_lock(&nso_layer.state_lock);
-        //pthread_cond_timewait(&nso_layer.state_signal, &nso_layer.state_lock, );
+        make_timeout(&timeout, nso_layer.timeout_ms);
+        pthread_cond_timewait(&nso_layer.state_signal, &nso_layer.state_lock, &timeout);
     }
     pthread_mutex_unlock(&nso_layer.state_lock);
 
-    //send first topo report
-    pthread_mutex_lock(&nso_layer.state_lock);
-    while (nso_layer.dev_state == NRG5_REG) {
-        pthread_mutex_unlock(&nso_layer.state_lock);
-        //send first topo report
+    LOG_INFO("device is registered into NRG-5 database!\n");
 
-        //wait for first routes update
-        pthread_mutex_lock(&nso_layer.state_lock);
-        //pthread_cond_timewait(&nso_layer.state_signal, &nso_layer.state_lock, );
+    //send first topo report
+    //TODO: 
+
+    //wait for first routes update
+    pthread_mutex_lock(&nso_layer.state_lock);
+    make_timeout(&timeout, nso_layer.timeout_ms);
+    pthread_cond_timewait(&nso_layer.state_signal, &nso_layer.state_lock, &timeout);
+    //once the first routes update is received, rx thread will update son table and set dev_state to NRG5_CONNECTED
+    if (nso_layer.dev_state != NRG5_CONNECTED) {
+        LOG_DEBUG("timeout for waiting first vSON route update!\n");
+        goto restart_registration;
     }
     pthread_mutex_unlock(&nso_layer.state_lock);
 
@@ -153,13 +176,16 @@ static void* __tx_thread_main(void *arg) {
     while (nso_layer.dev_state == NRG5_CONNECTED) {
         pthread_mutex_unlock(&nso_layer.state_lock);
         //send topo report
+        //TODO:
+
         //sleep for a period of time
         pthread_mutex_lock(&nso_layer.state_lock);
     }
     pthread_mutex_unlock(&nso_layer.state_lock);
 
+    //once device is unconnectted
     //TODO: restart registration to support mobility
-    
+
     return NULL;
 }
 

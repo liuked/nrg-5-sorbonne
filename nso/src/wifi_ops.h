@@ -10,6 +10,7 @@ struct wifi_handle_s {
     int sockfd;
     int if_index;
     char if_mac[ETH_ALEN];
+    int if_mtu;
 };
 
 typedef struct wifi_handle_s wifi_handle_t;
@@ -25,6 +26,7 @@ static nic_ops_t wifi_ops = {
     .open = wifi_open,
     .close = wifi_close,
     .send = wifi_send,
+    .broadcast = wifi_broadcast,
     .receive = wifi_receive,
     .get_info = wifi_get_info,
 };

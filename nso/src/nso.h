@@ -9,6 +9,9 @@
 #include <pthread.h>
 
 #define NSO_MAX_SUPPORTED_IFACES 10
+#define NSO_DEFAULT_AGING_PERIOD_MS 2000
+#define NSO_DEFAULT_TIMEOUT_MS NSO_DEFAULT_AGING_PERIOD_MS
+#define NSO_DEFAULT_SON_REPORT_PERIOD_MS 1000
 
 typedef enum {
     NRG5_UNREG = 0,
@@ -17,7 +20,6 @@ typedef enum {
 }device_status_e;
 
 typedef struct {
-    
     //interface list
     nso_if_t *ifaces[NSO_MAX_SUPPORTED_IFACES];
     int ifaces_nb;
@@ -51,7 +53,15 @@ typedef struct {
     //aging thread: for aging tables
     pthread_t aging_pid;
 
-}nso_layer_t;
+    int timeout_ms;
+    int aging_period_ms;
+    //son report period
+    int sr_period_ms;
+    //it is the maximum among MTUs of interfaces.
+    //it is the L2 MTU. That is the length of nso header is inclusive
+    int mtu;
+
+} nso_layer_t;
 
 static nso_layer_t nso_layer;
 

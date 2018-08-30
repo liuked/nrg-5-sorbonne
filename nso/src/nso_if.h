@@ -62,6 +62,10 @@ static int nso_if_send(nso_if_t *iface, packet_t *p, l2addr_t *dst) {
     return iface->ops->send(iface->handle, p, dst);
 }
 
+static int nso_if_broadcast(nso_if_t *iface, packet_t *p) {
+        return iface->ops->broadcast(iface->handle, p);
+}
+
 static int nso_if_receive(nso_if_t *iface, packet_t *p, l2addr_t **src, l2addr_t **dst) {
     return iface->ops->receive(iface->handle, p, src, dst);
 }

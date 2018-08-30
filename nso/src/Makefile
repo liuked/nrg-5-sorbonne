@@ -1,7 +1,9 @@
 CFLAGS:= -g
 LDFLAGS:= -lpthread
 
-test: test_nbr test_fwding test_arp test_wifi
+test: test_nbr test_fwding test_arp test_wifi test_nso
+
+test_nso: test_nso.o nso.o wifi_ops.o fwding.o neighbor.o arp.o nso_aaa.o nso_tsd.o
 
 test_nbr: test_nbr.o neighbor.o wifi_ops.o
 	gcc -o test_nbr test_nbr.o neighbor.o wifi_ops.o $(CFLAGS) $(LDFLAGS)

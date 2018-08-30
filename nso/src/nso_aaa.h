@@ -3,8 +3,7 @@
 
 #include <stdint.h>
 
-//actual data size in bytes is returned
-int nso_get_credentials(uint8_t *buf, int size);
+int aaa_get_credentials(uint8_t *in_buf, int in_size, uint8_t *out_buf, int *out_size);
 
 
 #endif
