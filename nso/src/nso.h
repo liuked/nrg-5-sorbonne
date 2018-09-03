@@ -63,7 +63,8 @@ typedef struct {
 
 } nso_layer_t;
 
-static nso_layer_t nso_layer;
+
+extern nso_layer_t nso_layer;
 
 int nso_layer_run(char *config_file);
 int nso_layer_stop();

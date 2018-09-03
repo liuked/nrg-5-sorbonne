@@ -5,7 +5,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <pthread.h>
 #include "util.h"
+
+nso_layer_t nso_layer;
 
 /*
  * @config_file format: 
@@ -142,7 +145,6 @@ static void* __tx_thread_main(void *arg) {
     //register
     struct timespec timeout;
     pthread_mutex_lock(&nso_layer.state_lock);
-
 restart_registration:
     while (nso_layer.dev_state == NRG5_UNREG) {
         pthread_mutex_unlock(&nso_layer.state_lock);
@@ -151,7 +153,7 @@ restart_registration:
         //wait for registration success
         pthread_mutex_lock(&nso_layer.state_lock);
         make_timeout(&timeout, nso_layer.timeout_ms);
-        pthread_cond_timewait(&nso_layer.state_signal, &nso_layer.state_lock, &timeout);
+        pthread_cond_timedwait(&nso_layer.state_signal, &nso_layer.state_lock, &timeout);
     }
     pthread_mutex_unlock(&nso_layer.state_lock);
 
@@ -163,7 +165,7 @@ restart_registration:
     //wait for first routes update
     pthread_mutex_lock(&nso_layer.state_lock);
     make_timeout(&timeout, nso_layer.timeout_ms);
-    pthread_cond_timewait(&nso_layer.state_signal, &nso_layer.state_lock, &timeout);
+    pthread_cond_timedwait(&nso_layer.state_signal, &nso_layer.state_lock, &timeout);
     //once the first routes update is received, rx thread will update son table and set dev_state to NRG5_CONNECTED
     if (nso_layer.dev_state != NRG5_CONNECTED) {
         LOG_DEBUG("timeout for waiting first vSON route update!\n");

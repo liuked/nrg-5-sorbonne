@@ -51,4 +51,9 @@ static int packet_append_data(packet_t *p, uint8_t *data, int size) {
     return 0;
 }
 
+static void packet_inc_len(packet_t *p, int size) {
+    p->byte_len += size;
+    p->tail += size;
+}
+
 #endif

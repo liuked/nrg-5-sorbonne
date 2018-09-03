@@ -22,13 +22,4 @@ int wifi_broadcast(nic_handle_t *handle, packet_t *pkt);
 int wifi_receive(nic_handle_t *handle, packet_t *pkt, l2addr_t **src, l2addr_t **dst);
 int wifi_get_info(nic_handle_t *handle, nic_info_t *info);
 
-static nic_ops_t wifi_ops = {
-    .open = wifi_open,
-    .close = wifi_close,
-    .send = wifi_send,
-    .broadcast = wifi_broadcast,
-    .receive = wifi_receive,
-    .get_info = wifi_get_info,
-};
-
 #endif

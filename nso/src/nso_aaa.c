@@ -1,5 +1,6 @@
 #include "nso_aaa.h"
 #include <stdlib.h>
+#include <string.h>
 
 const uint8_t test_credentials[] = {
     0x01, 0x02, 0x03, 0x04,

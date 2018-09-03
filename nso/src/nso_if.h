@@ -23,10 +23,16 @@ typedef struct nso_if_s {
     int if_type;
 }nso_if_t;
 
-static nic_ops_t *nic_ops[] = {
+static nic_ops_t nic_ops[] = {
     //wifi ops
-    [IFACE_TYPE_WIFI] = &wifi_ops,
-
+    [IFACE_TYPE_WIFI] = {
+        .open = wifi_open,
+        .close = wifi_close,
+        .send = wifi_send,
+        .broadcast = wifi_broadcast,
+        .receive = wifi_receive,
+        .get_info = wifi_get_info,
+    },
 };
 
 static nso_if_t* alloc_nso_if(char *if_name, int index, int type) {
@@ -38,7 +44,7 @@ static nso_if_t* alloc_nso_if(char *if_name, int index, int type) {
     strcpy(iface->if_name, if_name);
     iface->if_index = index;
     iface->if_type = type;
-    iface->ops = nic_ops[type];
+    iface->ops = &nic_ops[type];
     return iface;
 }
 
@@ -63,7 +69,7 @@ static int nso_if_send(nso_if_t *iface, packet_t *p, l2addr_t *dst) {
 }
 
 static int nso_if_broadcast(nso_if_t *iface, packet_t *p) {
-        return iface->ops->broadcast(iface->handle, p);
+    return iface->ops->broadcast(iface->handle, p);
 }
 
 static int nso_if_receive(nso_if_t *iface, packet_t *p, l2addr_t **src, l2addr_t **dst) {
