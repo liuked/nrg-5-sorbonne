@@ -34,6 +34,7 @@ int fwd_table_add(fwd_table_t *tbl, fwd_entry_t *e) {
 #ifdef FWD_THREAD_SAFE
     pthread_mutex_unlock(&tbl->fwdt_lock);
 #endif
+    return 0;
 }
 
 fwd_entry_t* fwd_table_lookup(fwd_table_t *tbl, device_id_t *dest) {
@@ -65,6 +66,7 @@ int fwd_table_del(fwd_table_t *tbl, fwd_entry_t *e) {
 #ifdef FWD_THREAD_SAFE
     pthread_mutex_unlock(&tbl->fwdt_lock);
 #endif
+    return 0;
 }
 
 static inline void __fwd_table_del_nolock(fwd_table_t *tbl, fwd_entry_t *e) {

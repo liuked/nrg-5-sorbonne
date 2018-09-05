@@ -5,10 +5,11 @@
 #include "nso_aaa.h"
 #include <arpa/inet.h>
 
+extern nso_layer_t nso_layer;
 static nso_tsd_t nso_tsd;
 
 /*
- * message format: [NSO hdr][type 1B][credential xB]
+ * message format: [NSO hdr][type 1B][credential XB]
  */
 static packet_t* __get_nso_beacon(nso_layer_t *nsol) {
     packet_t *pkt =  alloc_packet(nsol->mtu);
@@ -30,7 +31,8 @@ static packet_t* __get_nso_beacon(nso_layer_t *nsol) {
     *type = NSO_TSD_MSG_REG;
 
     int aaa_len;
-    if (aaa_get_credentials(nso_hdr->src_devid, DEV_ID_WIDTH, aaa_data, &aaa_len) < 0) {
+    if (aaa_get_credentials(nso_hdr->src_devid, DEV_ID_WIDTH, 
+                aaa_data, &aaa_len) < 0) {
         LOG_DEBUG("unable to get credential!\n");
         free_packet(pkt);
         return NULL;
@@ -39,7 +41,6 @@ static packet_t* __get_nso_beacon(nso_layer_t *nsol) {
     
     //maintain pointers
     packet_inc_len(pkt, nso_hdr->length);
-        
     nso_hdr->len_ver = htons(nso_hdr->len_ver);
     return pkt;
 }
@@ -58,15 +59,15 @@ int tsd_broadcast_beacons() {
         goto out;
     }
     nso_if_t *iface = nsol->ifaces[nso_tsd.if_index];
-    //ret = nso_if_broadcast(iface, pkt);
-    l2addr_t *dst = alloc_l2addr(6, NULL);
-    dst->addr[0] = 0x50;
-    dst->addr[1] = 0x3e;
-    dst->addr[2] = 0xaa;
-    dst->addr[3] = 0x49;
-    dst->addr[4] = 0x04;
-    dst->addr[5] = 0x90;
-    ret = nso_if_send(iface, pkt, dst);
+    ret = nso_if_broadcast(iface, pkt);
+    //l2addr_t *dst = alloc_l2addr(6, NULL);
+    //dst->addr[0] = 0x50;
+    //dst->addr[1] = 0x3e;
+    //dst->addr[2] = 0xaa;
+    //dst->addr[3] = 0x49;
+    //dst->addr[4] = 0x04;
+    //dst->addr[5] = 0x90;
+    //ret = nso_if_send(iface, pkt, dst);
 
     free_packet(pkt);
 out:
@@ -74,11 +75,35 @@ out:
     return ret;
 }
 
-int tsd_ack_registration() {
-    nso_layer_t *nsol = &nso_layer;
-    pthread_mutex_lock(&nsol->state_lock);
-    nsol->dev_state = NRG5_REG;
-    pthread_mutex_unlock(&nsol->state_lock);
-    pthread_cond_broadcast(&nsol->state_signal);
+/*
+ * msg format:
+ * [answer 1B]: 0 = success, 1 = fail
+ * */
+static void __ack_registration(uint8_t ans) {
+    if (ans == 0) {
+        nso_layer_t *nsol = &nso_layer;
+        pthread_mutex_lock(&nsol->state_lock);
+        nsol->dev_state = NRG5_REG;
+        pthread_mutex_unlock(&nsol->state_lock);
+        pthread_cond_broadcast(&nsol->state_signal);
+    }
+    return 0;
+}
+
+/*
+ * msg format:
+ * [type 1B]
+ * [type related data xB]
+ * */
+int tsd_process_rx(uint8_t *data, int size) {
+    uint8_t type = *data;
+    switch(type) {
+        case NSO_TSD_MSG_REG_REPLY:
+            __ack_registration(*(data + 1));
+            break;
+        default:
+            LOG_DEBUG("unknown tsd message\n");
+            return -1;
+    }
     return 0;
 }

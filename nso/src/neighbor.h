@@ -100,5 +100,13 @@ void nbr_table_destroy(nbr_table_t*);
 //destroy & free memory of tbl allocated by malloc
 void nbr_table_free(nbr_table_t *tbl);
 
+//shoude be surounded by lock and unlock
+int nbr_table_size(nbr_table_t *tbl);
+
+void nbr_table_lock(nbr_table_t *tbl);
+void nbr_table_unlock(nbr_table_t *tbl);
+
+#define nbr_table_iterate(ptr, tbl) \
+    list_for_each_entry(ptr, &tbl->ll_head, ll)
 
 #endif

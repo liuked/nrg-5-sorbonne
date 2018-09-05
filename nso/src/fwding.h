@@ -88,5 +88,22 @@ void fwd_table_destroy(fwd_table_t *tbl);
 //destroy and free allocated memory of tbl
 void fwd_table_free(fwd_table_t *tbl);
 
+static void fwd_table_lock(fwd_table_t *tbl) {
+    pthread_mutex_lock(&tbl->fwdt_lock);
+}
+
+static void fwd_table_unlock(fwd_table_t *tbl) {
+    pthread_mutex_unlock(&tbl->fwdt_lock);
+}
+
+static fwd_entry_t* fwd_table_lookup_unsafe(fwd_table_t *tbl, device_id_t *dest) {
+    fwd_entry_t *pos = NULL;
+    hash_for_each_possible(tbl->ht_dest, pos, hl, hash_device_id(dest)) {
+        if (device_id_equal(dest, pos->dest))
+            break;
+    }
+    return pos;
+}
+
 
 #endif

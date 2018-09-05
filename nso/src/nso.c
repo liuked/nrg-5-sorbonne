@@ -105,6 +105,9 @@ static int __nso_layer_init(char *config_file) {
     nso_layer.aging_period_ms = NSO_DEFAULT_AGING_PERIOD_MS;
     nso_layer.sr_period_ms = NSO_DEFAULT_SON_REPORT_PERIOD_MS;
 
+    //TODO: implement battery reader to get real battery information from device
+    nso_layer.battery = 100;
+
     tsd_init();
 
     //init success
@@ -160,7 +163,7 @@ restart_registration:
     LOG_INFO("device is registered into NRG-5 database!\n");
 
     //send first topo report
-    //TODO: 
+    son_topo_report();
 
     //wait for first routes update
     pthread_mutex_lock(&nso_layer.state_lock);
@@ -173,20 +176,23 @@ restart_registration:
     }
     pthread_mutex_unlock(&nso_layer.state_lock);
 
-    //send periodical report
+    //send periodical report & neighbor advertisement
     pthread_mutex_lock(&nso_layer.state_lock);
     while (nso_layer.dev_state == NRG5_CONNECTED) {
         pthread_mutex_unlock(&nso_layer.state_lock);
         //send topo report
-        //TODO:
-
+        son_topo_report();
+        son_nbr_advertise();
         //sleep for a period of time
+        //TODO: sleep
+        usleep(nso_layer.sr_period_ms * 1000);
         pthread_mutex_lock(&nso_layer.state_lock);
     }
     pthread_mutex_unlock(&nso_layer.state_lock);
 
     //once device is unconnectted
     //TODO: restart registration to support mobility
+    //e.g. reset all states and tables
 
     return NULL;
 }
@@ -205,7 +211,6 @@ int nso_layer_run(char *config_file) {
     pthread_create(&nso_layer.rx_pid, NULL, __rx_thread_main, NULL);
     pthread_create(&nso_layer.tx_pid, NULL, __tx_thread_main, NULL);
     pthread_create(&nso_layer.aging_pid, NULL, __aging_thread_main, NULL);
-
     LOG_INFO("nso layer running!\n");
     return 0;
 }
@@ -214,4 +219,51 @@ int nso_layer_stop() {
     //cancel threads
     //free data structure
     return 0;
+}
+
+int nso_layer_fwd(packet_t *pkt) {
+    struct nsohdr *nso_hdr = (struct nsohdr*)pkt->data;
+    device_id_t *dst = alloc_device_id(nso_hdr->dst_devid);
+    device_id_t *nxt = NULL;
+    nso_if_t *iface = NULL;
+
+    fwd_table_lock(nso_layer.son_fwdt);
+    fwd_entry_t *fwd_e = fwd_table_lookup_unsafe(nso_layer.son_fwdt, dst);
+    if (fwd_e) {
+        nxt = alloc_device_id((uint8_t*)fwd_e->nxthop);
+        iface = fwd_e->interface;
+    }
+    fwd_table_unlock(nso_layer.son_fwdt);
+
+    if (!nxt) {
+        fwd_table_lock(nso_layer.local_fwdt);
+        fwd_e = fwd_table_lookup_unsafe(nso_layer.local_fwdt, dst);
+        if (fwd_e) {
+            nxt = alloc_device_id((uint8_t*)fwd_e->nxthop);
+            iface = fwd_e->interface;
+        }
+        fwd_table_unlock(nso_layer.local_fwdt);
+    }
+
+    int ret = 0;
+    if (!nxt) {
+        LOG_DEBUG("no avaliable forwarding entry!\n");
+        ret = -1;
+        goto out;
+    }
+    arp_table_lock(nso_layer.arpt);
+    arp_entry_t *arp_e = arp_table_lookup_from_dev_id_unsafe(nso_layer.arpt, nxt);
+    if (!arp_e) {
+        LOG_DEBUG("no avaliable arp entry!\n");
+        ret = -1;
+        goto out;
+    }
+    l2addr_t *addr = alloc_l2addr(arp_e->l2addr->size, arp_e->l2addr->addr);
+    arp_table_unlock(nso_layer.arpt);
+    nso_if_send(iface, pkt, addr);
+out:
+    free_device_id(dst);
+    free_device_id(nxt);
+    free_l2addr(addr);
+    return ret;
 }

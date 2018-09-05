@@ -37,7 +37,8 @@ typedef struct {
     //gw device id
     device_id_t *gw_id;
 
-    //device status
+    //device statusa
+    //TODO: change to atomic variable, instead of using mutex for performance reason
     device_status_e dev_state;
     pthread_mutex_t state_lock;
     pthread_cond_t state_signal;
@@ -61,12 +62,13 @@ typedef struct {
     //it is the L2 MTU. That is the length of nso header is inclusive
     int mtu;
 
+    //TODO: change to atomic variable for thread-safety
+    uint8_t battery;
+
 } nso_layer_t;
-
-
-extern nso_layer_t nso_layer;
 
 int nso_layer_run(char *config_file);
 int nso_layer_stop();
+int nso_layer_fwd(packet_t *pkt);
 
 #endif

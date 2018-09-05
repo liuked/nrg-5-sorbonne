@@ -19,6 +19,11 @@ void nbr_table_init(nbr_table_t *tbl) {
     pthread_mutex_init(&tbl->nbrt_lock, NULL);
 }
 
+//shoude be surounded by lock and unlock
+int nbr_table_size(nbr_table_t *tbl) {
+    return tbl->size;
+}
+
 //add new entry
 int nbr_table_add(nbr_table_t *tbl, nbr_entry_t *e) {
     assert(tbl);
@@ -115,4 +120,12 @@ void nbr_table_destroy(nbr_table_t *tbl) {
 void nbr_table_free(nbr_table_t *tbl) {
     nbr_table_destroy(tbl);
     free(tbl);
+}
+
+void nbr_table_lock(nbr_table_t *tbl) {
+    pthread_mutex_lock(&tbl->nbrt_lock);
+}
+
+void nbr_table_unlock(nbr_table_t *tbl) {
+    pthread_mutex_unlock(&tbl->nbrt_lock);
 }
