@@ -16,6 +16,6 @@ typedef struct {
 
 int tsd_init();
 int tsd_broadcast_beacons();
-int tsd_process_rx(uint8_t *data, int size);
+int tsd_process_rx(packet_t *pkt, l2addr_t *src, l2addr_t *dst, nso_if_t *iface);
 
 #endif

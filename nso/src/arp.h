@@ -94,4 +94,13 @@ static arp_entry_t* arp_table_lookup_from_dev_id_unsafe(arp_table_t *tbl, device
     return pos;
 }
 
+static arp_entry_t* arp_table_lookup_from_l2addr_unsafe(arp_table_t *tbl, l2addr_t *addr) {
+    arp_entry_t *pos = NULL;
+    hash_for_each_possible(tbl->ht_l2addr, pos, hl_l2addr, hash_l2addr(addr)) {
+        if (l2addr_equal(addr, pos->l2addr))
+            break;
+    }
+    return pos;
+}
+
 #endif

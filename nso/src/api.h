@@ -27,7 +27,7 @@ typedef struct __attribute__((packed)) {
  * @return: how many bytes that are sent successfully;
  *          negative number means a error occurs.
  * */
-int nso_send(uint8_t *buf, int size, nso_addr_t *dest);
+int nso_send(uint8_t *buf, int size, nso_addr_t *dest, uint16_t proto);
 
 /*
  * This function is used by upper layer to receive a data 
@@ -47,7 +47,7 @@ int nso_send(uint8_t *buf, int size, nso_addr_t *dest);
  *          0 means that #TODO#;
  *          negative number means a error occurs.
  * */
-int nso_receive(uint8_t *buf, int size, nso_addr_t *src, nso_addr_t *dst);
+int nso_receive(uint8_t *buf, int size, nso_addr_t *src, nso_addr_t *dst, uint16_t *proto);
 
 /*
  * This function is used by upper layer to check the MTU that

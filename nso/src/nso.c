@@ -7,6 +7,8 @@
 #include <time.h>
 #include <pthread.h>
 #include "util.h"
+#include <arpa/inet.h>
+#include <netinet/in.h>
 
 nso_layer_t nso_layer;
 
@@ -73,7 +75,7 @@ static int __nso_layer_init(char *config_file) {
         goto err_destroy_lock;
     }
 
-    nso_layer.son_fwdt = fwd_table_create();
+    nso_layer.son_fwdt = fwd_table_create();Domiciliation de l'agence bancaire
     if (!nso_layer.son_fwdt) {
         goto err_free_arpt;
     }
@@ -109,6 +111,11 @@ static int __nso_layer_init(char *config_file) {
     nso_layer.battery = 100;
 
     tsd_init();
+    son_init();
+
+    pq_init(&nso_layer.data_pq);
+    pthread_cond_init(&nso_layer.data_signal, NULL);
+    pthread_mutex_init(&nso_layer.data_lock, NULL);
 
     //init success
     fclose(fp);
@@ -140,7 +147,62 @@ err_ret:
     return -1;
 }
 
+static void data_process_rx(packet_t *pkt, l2addr_t *src, 
+        l2addr_t *dst, nso_if_t *iface) {
+    pthread_mutex_lock(&nso_layer.state_lock);
+    int ret = nso_layer.dev_state == NRG5_CONNECTED;
+    pthread_mutex_unlock(&nso_layer.state_lock);
+    if (!ret) {
+        LOG_DEBUG("drop received data packet");
+        return;
+    }
+
+    //receive or forward packet
+    struct nsohdr *hdr = (struct nsohdr*)pkt->data;
+    device_id_t *dst_id = alloc_device_id((uint8_t*)hdr->dst_devid);
+    if (device_id_equal(dst_id, nso_layer.dev_id)) {
+        //is for me
+        packet_t *new_pkt = packet_clone(pkt);
+        pthread_mutex_lock(&nso_layer.data_lock);
+        int notify = pq_empty(&nso_layer.pq);
+        pq_put_packet(&nso_layer.pq, new_pkt);
+        if (notify) {
+            pthread_cond_broadcast(&nso_layer.data_signal);
+        }
+        pthread_mutex_unlock(&nso_layer.data_lock);
+    } else {
+        //forward it
+        nso_layer_fwd(pkt);
+    }
+}
+
 static void* __rx_thread_main(void *arg) {
+    int if_id = (int)arg;
+    nso_if_t *iface = nso_layer.ifaces[if_id];
+    packet_t *pkt = alloc_packet(nso_layer.mtu);
+    l2addr_t *src, *dst;
+    while (1) {
+        //@MARK: pkt,src,dst are allocated from heap memory
+        int ret = nso_if_receive(iface, pkt, &src, &dst);
+        struct nsohdr *hdr = (struct nsohdr*)pkt->data;
+
+        switch(ntohs(hdr->proto)){
+            case NSO_PROTO_CP_VTSD:
+                tsd_process_rx(pkt, src, dst, iface);
+                break;
+            case NSO_PROTO_CP_VSON:
+                son_process_rx(pkt, src, dst, iface);
+                break;
+            default:
+                //data packet
+                data_process_rx(pkt, src, dst, iface);
+                break;
+        }
+        free_l2addr(src);
+        free_l2addr(dst);
+        packet_reset(pkt);
+    }
+    free_packet(pkt);
     return NULL;
 }
 
@@ -208,7 +270,10 @@ int nso_layer_run(char *config_file) {
         LOG_DEBUG("nso layer init failed!\n");
         return -1;
     }
-    pthread_create(&nso_layer.rx_pid, NULL, __rx_thread_main, NULL);
+    int if_id;
+    for (if_id = 0; if_id < nso_layer.ifaces_nb; if_id++) {
+        pthread_create(&nso_layer.rx_pid[if_id], NULL, __rx_thread_main, (void*)if_id);
+    }
     pthread_create(&nso_layer.tx_pid, NULL, __tx_thread_main, NULL);
     pthread_create(&nso_layer.aging_pid, NULL, __aging_thread_main, NULL);
     LOG_INFO("nso layer running!\n");
@@ -221,6 +286,8 @@ int nso_layer_stop() {
     return 0;
 }
 
+
+//pkt is a nso packet without L2 header
 int nso_layer_fwd(packet_t *pkt) {
     struct nsohdr *nso_hdr = (struct nsohdr*)pkt->data;
     device_id_t *dst = alloc_device_id(nso_hdr->dst_devid);
@@ -267,3 +334,89 @@ out:
     free_l2addr(addr);
     return ret;
 }
+
+//-------------------------------------
+
+int nso_layer_get_mtu() {
+    return nso_layer.mtu - sizeof(struct nsohdr);
+}
+
+int nso_layer_recv(uint8_t *buf, int size, device_id_t *src, device_id_t *dst, uint16_t *proto) {
+    pthread_mutex_lock(&nso_layer.state_lock);
+    //wait state transit to NRG5_CONNECTED
+    while (nso_layer.dev_state != NRG5_CONNECTED) {
+        pthread_cond_wait(&nso_layer.state_cond, &nso_layer.state_lock);
+    }
+    pthread_mutex_unlock(&nso_layer.state_lock);
+
+    packet_t *pkt = NULL;
+
+    pthread_mutex_lock(&nso_layer.data_lock);
+
+    while (pq_empty(&nso_layer.data_pq))
+        pthread_cond_wait(&nso_layer.data_signal, &nso_layer.data_lock);
+
+    pkt = pq_get_packet(&nso_layer.data_pq);
+    pthread_mutex_unlock(&nso_layer.data_lock);
+
+    //now we have the packet
+    struct nsohdr *hdr = (struct nsohdr*)pkt->data;
+    if (src)
+        assign_device_id(src, hdr->src_devid);
+    if (dst)
+        assign_device_id(dst, hdr->dst_devid);
+    if (proto)
+        *proto = ntohs(hdr->proto);
+
+    hdr->len_ver = ntohs(hdr->len_ver);
+
+    int data_size = hdr->length - sizeof(*hdr);
+    data_size = data_size > size ? size : data_size;
+
+    memcpy(buf, pkt->data + sizeof(*hdr), data_size);
+
+    free_packet(pkt);
+    return data_size;
+}
+
+
+static packet_t* __make_data_pkt(uint8_t *buf, int size, device_id_t *src, device_id_t *dst, uint16_t proto) {
+    packet_t *pkt = alloc_packet(nso_layer.mtu);
+    struct nsohdr *hdr = (struct nsohdr*)pkt->data;
+    memcpy(hdr->src_devid, (uint8_t*)nso_layer.dev_id, DEV_ID_WIDTH);
+    memcpy(hdr->dst_devid, (uint8_t*)dst, DEV_ID_WIDTH);
+    hdr->proto = htons(proto);
+    hdr->ver = 0;
+    hdr->length = sizeof(struct nsohdr) + size;
+    if (hdr->length > nso_layer.mtu) {
+        hdr->length = nso_layer.mtu;
+    }
+    memcpy(pkt->data + sizeof(struct nsohdr), buf, hdr->length - sizeof(struct nsohdr));
+    packet_inc_len(pkt, hdr->length);
+    hdr->len_ver = htons(hdr->len_ver);
+    return pkt;
+}
+
+int nso_layer_send(uint8_t *buf, int size, device_id_t *dst, uint16_t proto) {
+    pthread_mutex_lock(&nso_layer.state_lock);
+    //wait state transit to NRG5_CONNECTED
+    while (nso_layer.dev_state != NRG5_CONNECTED) {
+        pthread_cond_wait(&nso_layer.state_cond, &nso_layer.state_lock);
+    }
+    pthread_mutex_unlock(&nso_layer.state_lock);
+
+    if (dst == NULL)
+        dst = nso_layer.gw_id;
+
+    //make nso packet
+    packet_t *pkt = __make_data_pkt(buf, size, nso_layer.dev_id, dst, proto);
+
+    //send
+    nso_layer_fwd(pkt);
+    free_packet(pkt);
+
+    return size < (nso_layer.mtu - sizeof(struct nsohdr))?
+        size: nso_layer.mtu - sizeof(struct nsohdr);
+
+}
+

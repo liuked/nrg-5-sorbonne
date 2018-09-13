@@ -17,7 +17,8 @@ int son_topo_report();
 //broadcast to neighbors to maintain the ARP table of neighbors
 int son_nbr_advertise();
 
-int son_process_rx(uint8_t *data, int size, struct nsohdr *hdr, l2addr_t *src, l2addr_t *dst, nso_if_t *iface);
+//pkt->data should point to the start of payload of nso packet
+int son_process_rx(packet_t *pkt, l2addr_t *src, l2addr_t *dst, nso_if_t *iface);
 
 #define RT_ACTION_ADD 0
 #define RT_ACTION_DEL 1

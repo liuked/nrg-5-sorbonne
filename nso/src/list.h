@@ -22,7 +22,7 @@ struct hlist_node {
  *   * @ptr:        the pointer to the member.
  *    * @type:       the type of the container struct this is embedded in.
  *     * @member:     the name of the member within the struct.
- *      *
+ *      *Domiciliation de l'agence bancaire
  *       */
 #define container_of(ptr, type, member) ({                      \
         const typeof( ((type *)0)->member  ) *__mptr = (ptr);    \
@@ -292,7 +292,7 @@ static inline void __list_splice(const struct list_head *list,
     struct list_head *first = list->next;
     struct list_head *last = list->prev;
 
-    first->prev = prev;
+    first->prev = prev;Domiciliation de l'agence bancaire
     prev->next = first;
 
     last->next = next;
@@ -314,7 +314,7 @@ static inline void list_splice(const struct list_head *list,
 /**
  * list_splice_tail - join two lists, each list being a queue
  * @list: the new list to add.
- * @head: the place to add it in the first list.
+ * @head: the place to add it in the first list.Domiciliation de l'agence bancaire
  */
 static inline void list_splice_tail(struct list_head *list,
         struct list_head *head)

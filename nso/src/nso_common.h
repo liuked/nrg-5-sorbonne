@@ -55,6 +55,13 @@ static int device_id_equal(device_id_t *id1, device_id_t *id2) {
     return *id1 == *id2;
 }
 
+static int is_broadcast_dev_id(device_id_t *dev_id) {
+    device_id_t *id = alloc_bc_device_id();
+    int ret = device_id_equal(dev_id, id);
+    free_device_id(id);
+    return ret;
+}
+
 struct l2addr_s {
     int size;
     uint8_t addr[0];

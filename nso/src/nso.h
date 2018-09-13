@@ -7,6 +7,7 @@
 #include "neighbor.h"
 #include "nso_common.h"
 #include <pthread.h>
+#include "packet_queue.h"
 
 #define NSO_MAX_SUPPORTED_IFACES 10
 #define NSO_DEFAULT_AGING_PERIOD_MS 2000
@@ -37,7 +38,7 @@ typedef struct {
     //gw device id
     device_id_t *gw_id;
 
-    //device statusa
+    //device status
     //TODO: change to atomic variable, instead of using mutex for performance reason
     device_status_e dev_state;
     pthread_mutex_t state_lock;
@@ -48,7 +49,9 @@ typedef struct {
 
     //thread handle
     //rx thread: for receiving packets from ifaces
-    pthread_t rx_pid;
+    //for each interface, we use a thread to poll packet
+    pthread_t rx_pid[NSO_MAX_SUPPORTED_IFACES];
+
     //tx thread: for sending control plane packets to xMEC
     pthread_t tx_pid;
     //aging thread: for aging tables
@@ -65,10 +68,21 @@ typedef struct {
     //TODO: change to atomic variable for thread-safety
     uint8_t battery;
 
+    //data packet queue
+    pq_t data_pq;
+    pthread_mutex_t data_lock;
+    pthread_cond_t data_signal;
+
 } nso_layer_t;
 
 int nso_layer_run(char *config_file);
 int nso_layer_stop();
 int nso_layer_fwd(packet_t *pkt);
+
+/*----------------   API for upper layer-------------------------------*/
+
+int nso_layer_get_mtu();
+int nso_layer_recv(uint8_t *buf, int size, device_id_t *src, device_id_t *dst);
+int nso_layer_send(uint8_t *buf, int size, device_id_t *dst);
 
 #endif

@@ -137,6 +137,8 @@ int son_nbr_advertise() {
 
 /*
  * message format:
+ * <nsohdr>
+ * <1B type>
  * <1B action> <8B dst_devid> <8B nxthop_devid> <1B if_index>
  * .......
  *
@@ -144,60 +146,93 @@ int son_nbr_advertise() {
  * 0 = add
  * 1 = del
  * */
-static void __route_update(nso_layer_t *nsol, uint8_t *rt_data, int size) {
-    rt_rule_t *rule;
-    while (size > 0) {
-        rule = (rt_rule_t*)rt_data;
-        device_id_t *dst_id = alloc_device_id((uint8_t*)&rule->dst_id);
-        device_id_t *nh_id = alloc_device_id((uint8_t*)&rule->nh_id);
-        nso_if_t *iface = nsol->ifaces[rule->if_index];
-        fwd_entry_t *fwd_e = fwd_table_lookup(nsol->son_fwdt, dst_id);
-        switch(rule->action) {
-            case RT_ACTION_ADD:
-                if (fwd_e) {
-                    fwd_table_del(nsol->son_fwdt, fwd_e);
-                    free_fwd_entry(fwd_e);
-                }
-                fwd_e = alloc_fwd_entry(dst_id, nh_id, iface);
-                fwd_table_add(nsol->son_fwdt, fwd_e);
-                break;
-            case RT_ACTION_DEL:
-                if (fwd_e) {
-                    fwd_table_del(nsol->son_fwdt, fwd_e);
-                    free_fwd_entry(fwd_e);
-                }
-                free_device_id(dst_id);
-                free_device_id(nh_id);
-                break;
-            default:
-                free_device_id(dst_id);
-                free_device_id(nh_id);
-                LOG_DEBUG("unknown route rule action!\n");
-        }
+static void __route_update(nso_layer_t *nsol, packet_t *pkt, nso_if_t *iface) {
+    struct nsohdr *hdr = (struct nsohdr*)pkt->data;
+    device_id_t *pkt_dst_id = alloc_device_id((uint8_t*)hdr->dst_devid);
 
-        size -= sizeof(rt_rule_t);
-        rt_data += sizeof(rt_rule_t);
+    if (device_id_equal(pkt_dst_id, nsol->dev_id)) {
+        //is for me
+        pthread_mutex_lock(&nsol->state_lock);
+        int ret = nsol->dev_state == NRG5_REG || nsol->dev_state == NRG5_CONNECTED;
+        pthread_mutex_unlock(&nsol->state_lock);
+        if (!ret) {
+            LOG_DEBUG("drop received route update pkt\n");
+            goto exit;
+        }
+        //update routes
+        uint8_t *rt_data = *(pkt->data + sizeof(*hdr) + 1);
+        int size = pkt->byte_len - sizeof(*hdr) - 1;
+        rt_rule_t *rule;
+        while (size > 0) {
+            rule = (rt_rule_t*)rt_data;
+            device_id_t *dst_id = alloc_device_id((uint8_t*)&rule->dst_id);
+            device_id_t *nh_id = alloc_device_id((uint8_t*)&rule->nh_id);
+            nso_if_t *iface = nsol->ifaces[rule->if_index];
+            fwd_entry_t *fwd_e = fwd_table_lookup(nsol->son_fwdt, dst_id);
+            switch(rule->action) {
+                case RT_ACTION_ADD:
+                    if (fwd_e) {
+                        fwd_table_del(nsol->son_fwdt, fwd_e);
+                        free_fwd_entry(fwd_e);
+                    }
+                    fwd_e = alloc_fwd_entry(dst_id, nh_id, iface);
+                    fwd_table_add(nsol->son_fwdt, fwd_e);
+                    break;
+                case RT_ACTION_DEL:
+                    if (fwd_e) {
+                        fwd_table_del(nsol->son_fwdt, fwd_e);
+                        free_fwd_entry(fwd_e);
+                    }
+                    free_device_id(dst_id);
+                    free_device_id(nh_id);
+                    break;
+                default:
+                    free_device_id(dst_id);
+                    free_device_id(nh_id);
+                    LOG_DEBUG("unknown route rule action!\n");
+            }
+            size -= sizeof(rt_rule_t);
+            rt_data += sizeof(rt_rule_t);
+        }
+        assert(size == 0);
+    } else {
+        pthread_mutex_lock(&nsol->state_lock);
+        int ret = nsol->dev_stte == NRG5_CONNECTED;
+        pthread_mutex_unlock(&nsol->state_lock);
+        if (!ret) {
+            LOG_DEBUG("drop receieved route update!\n");
+            goto exit;
+        }
+        nso_layer_fwd(pkt);
     }
-    assert(size == 0);
+exit:
+    free_device_id(pkt_dst_id);
 }
 
-static void __neighbor_maintain(nsol_layer_t *nsol, struct nsohdr *hdr, l2addr_t *src, l2addr_t *dst, nso_if_t *iface) {
+static void __neighbor_maintain(nsol_layer_t *nsol, packet_t *pkt, l2addr_t *src, l2addr_t *dst, nso_if_t *iface) {
+    struct nsohdr *hdr = (struct nsohdr*)pkt->data;
     device_id_t *dev_id = alloc_device_id(hdr->src_devid);
     //maintain arp table
-    arp_entry_t *arp_e = arp_table_lookup_from_dev_id(nsol->arpt, dev_id);
+    arp_table_lock(nsol->arpt);
+    arp_entry_t *arp_e = arp_table_lookup_from_dev_id_unsafe(nsol->arpt, dev_id);
     if (arp_e) {
         arp_e->status = ARP_ACTIVE;
+        arp_table_unlock(nsol->arpt);
     } else {
+        arp_table_unlock(nsol->arpt);
         device_id_t *dev_id_copy = alloc_device_id(hdr->src_devid);
         l2addr_t *mac = alloc_l2addr(src->size, src->addr);
         arp_e = alloc_arp_entry(dev_id_copy, mac);
         arp_table_add(nsol->arpt, arp_e);
     }
     //maintain neighbor table
+    nbr_table_lock(nsol->nbrt);
     nbr_entry_t *nbr_e = nbr_table_lookup(nsol->nbrt, dev_id);
     if (nbr_e) {
         nbr_e->status = NBR_ACTIVE;
+        nbr_table_unlock(nsol->nbrt);
     } else {
+        nbr_table_unlock(nsol->nbrt);
         device_id_t *dev_id_copy = alloc_device_id(hdr->src_devid);
         metric_t *m = alloc_metric(1);
         nbr_e = alloc_nbr_entry(dev_id_copy, m, iface);
@@ -205,15 +240,29 @@ static void __neighbor_maintain(nsol_layer_t *nsol, struct nsohdr *hdr, l2addr_t
     }
 }
 
-int son_process_rx(uint8_t *data, int size, struct nsohdr *hdr, l2addr_t *src, l2addr_t *dst, nso_if_t *iface) {
-    uint8_t type = *data;
+static void __fwd_topo_report(nso_layer_t *nsol, packet_t *pkt) {
+    pthread_mutex_lock(&nsol->state_lock);
+    int ret = nsol->dev_state == NRG5_CONNECTED;
+    pthread_mutex_unlock(&nsol->state_lock);
+    if (!ret) {
+        LOG_DEBUG("drop received topo report!\n");
+    } else {
+        nso_layer_fwd(pkt);
+    }
+}
+
+int son_process_rx(packet_t *pkt, l2addr_t *src, l2addr_t *dst, nso_if_t *iface) {
+    uint8_t type = *(pkt->data + sizeof(struct nsohdr));
     nso_layer_t *nsol = &nso_layer;
     switch(type){
         case NSO_SON_MSG_RT:
-            __route_update(nsol, data + sizeof(type), size - sizeof(type));
+            __route_update(nsol, pkt, iface);
             break;
         case NSO_SON_MSG_NBR:
-            __neighbor_maintain(nsol, hdr, src, dst, iface);
+            __neighbor_maintain(nsol, pkt, src, dst, iface);
+            break;
+        case NSO_SON_MSG_TOPO:
+            __fwd_topo_report(nsol, pkt);
             break;
         default:
             LOG_DEBUG("unknown son message!\n");
