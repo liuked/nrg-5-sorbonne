@@ -6,6 +6,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include "nso.h"
+#include <unistd.h>
 
 extern nso_layer_t nso_layer;
 aaa_data_t aaa_mod;

@@ -1,6 +1,7 @@
 #include "nso.h"
 #include "nso_tsd.h"
 #include "nso_son.h"
+#include "nso_aaa.h"
 #include <unistd.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -33,7 +34,7 @@ static int __nso_layer_init(char *config_file) {
     int if_nb, if_type;
     char if_name[MAX_NSO_IFNAME_SZ];
 
-    fscanf("%d%s", &nso_layer.aaa_port, if_name);
+    fscanf(fp, "%d%s", &nso_layer.aaa_port, if_name);
     inet_aton(if_name, &nso_layer.aaa_addr);
 
     fscanf(fp, "%lld%d", &dev_id, &if_nb);

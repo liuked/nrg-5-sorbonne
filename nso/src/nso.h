@@ -8,6 +8,7 @@
 #include "nso_common.h"
 #include <pthread.h>
 #include "packet_queue.h"
+#include <arpa/inet.h>
 
 #define NSO_MAX_SUPPORTED_IFACES 10
 #define NSO_DEFAULT_AGING_PERIOD_MS 2000
