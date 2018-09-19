@@ -33,6 +33,9 @@ static int __nso_layer_init(char *config_file) {
     int if_nb, if_type;
     char if_name[MAX_NSO_IFNAME_SZ];
 
+    fscanf("%d%s", &nso_layer.aaa_port, if_name);
+    inet_aton(if_name, &nso_layer.aaa_addr);
+
     fscanf(fp, "%lld%d", &dev_id, &if_nb);
     if (if_nb <= 0 || if_nb > NSO_MAX_SUPPORTED_IFACES) {
         LOG_DEBUG("interface number error\n");
@@ -111,6 +114,7 @@ static int __nso_layer_init(char *config_file) {
     //TODO: implement battery reader to get real battery information from device
     nso_layer.battery = 100;
 
+    aaa_init();
     tsd_init();
     son_init();
 

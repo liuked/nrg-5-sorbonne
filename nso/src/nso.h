@@ -73,6 +73,10 @@ typedef struct {
     pthread_mutex_t data_lock;
     pthread_cond_t data_signal;
 
+    //aaa configuration
+    int aaa_port;
+    struct in_addr aaa_addr;
+
 } nso_layer_t;
 
 int nso_layer_run(char *config_file);
