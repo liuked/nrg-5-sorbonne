@@ -292,7 +292,7 @@ static inline void __list_splice(const struct list_head *list,
     struct list_head *first = list->next;
     struct list_head *last = list->prev;
 
-    first->prev = prev;Domiciliation de l'agence bancaire
+    first->prev = prev;
     prev->next = first;
 
     last->next = next;

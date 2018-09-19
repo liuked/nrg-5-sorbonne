@@ -82,8 +82,13 @@ void arp_table_destroy(arp_table_t*);
 //destroy & free memory of tbl allocated by malloc
 void arp_table_free(arp_table_t *tbl);
 
-static void arp_table_lock(arp_table_t *arpt);
-static void arp_table_unlock(arp_table_t *arpt);
+static void arp_table_lock(arp_table_t *arpt) {
+    pthread_mutex_lock(&arpt->arpt_lock);
+}
+
+static void arp_table_unlock(arp_table_t *arpt) {
+    pthread_mutex_unlock(&arpt->arpt_lock);
+}
 
 static arp_entry_t* arp_table_lookup_from_dev_id_unsafe(arp_table_t *tbl, device_id_t *dev_id) {
     arp_entry_t *pos = NULL;

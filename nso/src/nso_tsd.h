@@ -2,11 +2,14 @@
 #define __NSO_TSD_H__
 
 #include <stdint.h>
+#include "packet.h"
+#include "nso_common.h"
+#include "nso_if.h"
 
-typedef enum {
-    NSG_TSD_MSG_REG = 0,
-    NSG_TSD_MSG_REG_REPLY,
-    NSG_TSD_MSG_MAX,
+enum {
+    NSO_TSD_MSG_REG = 0,
+    NSO_TSD_MSG_REG_REPLY,
+    NSO_TSD_MSG_MAX,
 };
 
 typedef struct {

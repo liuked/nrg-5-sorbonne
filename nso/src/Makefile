@@ -3,7 +3,7 @@ LDFLAGS:= -lpthread
 
 test: test_nbr test_fwding test_arp test_wifi test_nso
 
-test_nso: test_nso.o nso.o wifi_ops.o fwding.o neighbor.o arp.o nso_aaa.o nso_tsd.o nso_son.o
+test_nso: test_nso.o nso.o wifi_ops.o fwding.o neighbor.o arp.o nso_aaa.o nso_tsd.o nso_son.o packet_queue.o api.o
 	gcc -o $@ $^ $(CFLAGS) $(LDFLAGS)
 
 test_nbr: test_nbr.o neighbor.o wifi_ops.o
@@ -41,6 +41,10 @@ nso_tsd.o: nso_tsd.h nso_aaa.h nso.h nso_packet.h packet.h
 nso_son.o: nso_son.h
 
 nso_aaa.o: nso_aaa.h
+
+api.o: api.h nso.h
+
+packet_queue.o: packet_queue.h
 
 .PHONY: clean
 clean:

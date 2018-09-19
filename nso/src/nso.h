@@ -82,7 +82,7 @@ int nso_layer_fwd(packet_t *pkt);
 /*----------------   API for upper layer-------------------------------*/
 
 int nso_layer_get_mtu();
-int nso_layer_recv(uint8_t *buf, int size, device_id_t *src, device_id_t *dst);
-int nso_layer_send(uint8_t *buf, int size, device_id_t *dst);
+int nso_layer_recv(uint8_t *buf, int size, device_id_t *src, device_id_t *dst, uint16_t *proto);
+int nso_layer_send(uint8_t *buf, int size, device_id_t *dst, uint16_t proto);
 
 #endif

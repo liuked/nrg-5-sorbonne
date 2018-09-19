@@ -1,6 +1,10 @@
 #ifndef __NSO_SON_H__
 #define __NSO_SON_H__
 
+#include "packet.h"
+#include "nso_if.h"
+#include "nso_common.h"
+
 #include <stdint.h>
 
 enum {

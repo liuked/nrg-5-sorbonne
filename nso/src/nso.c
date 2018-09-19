@@ -1,6 +1,7 @@
 #include "nso.h"
 #include "nso_tsd.h"
 #include "nso_son.h"
+#include <unistd.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -75,7 +76,7 @@ static int __nso_layer_init(char *config_file) {
         goto err_destroy_lock;
     }
 
-    nso_layer.son_fwdt = fwd_table_create();Domiciliation de l'agence bancaire
+    nso_layer.son_fwdt = fwd_table_create();
     if (!nso_layer.son_fwdt) {
         goto err_free_arpt;
     }
@@ -164,8 +165,8 @@ static void data_process_rx(packet_t *pkt, l2addr_t *src,
         //is for me
         packet_t *new_pkt = packet_clone(pkt);
         pthread_mutex_lock(&nso_layer.data_lock);
-        int notify = pq_empty(&nso_layer.pq);
-        pq_put_packet(&nso_layer.pq, new_pkt);
+        int notify = pq_empty(&nso_layer.data_pq);
+        pq_put_packet(&nso_layer.data_pq, new_pkt);
         if (notify) {
             pthread_cond_broadcast(&nso_layer.data_signal);
         }
@@ -345,7 +346,7 @@ int nso_layer_recv(uint8_t *buf, int size, device_id_t *src, device_id_t *dst, u
     pthread_mutex_lock(&nso_layer.state_lock);
     //wait state transit to NRG5_CONNECTED
     while (nso_layer.dev_state != NRG5_CONNECTED) {
-        pthread_cond_wait(&nso_layer.state_cond, &nso_layer.state_lock);
+        pthread_cond_wait(&nso_layer.state_signal, &nso_layer.state_lock);
     }
     pthread_mutex_unlock(&nso_layer.state_lock);
 
@@ -401,7 +402,7 @@ int nso_layer_send(uint8_t *buf, int size, device_id_t *dst, uint16_t proto) {
     pthread_mutex_lock(&nso_layer.state_lock);
     //wait state transit to NRG5_CONNECTED
     while (nso_layer.dev_state != NRG5_CONNECTED) {
-        pthread_cond_wait(&nso_layer.state_cond, &nso_layer.state_lock);
+        pthread_cond_wait(&nso_layer.state_signal, &nso_layer.state_lock);
     }
     pthread_mutex_unlock(&nso_layer.state_lock);
 

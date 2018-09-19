@@ -3,6 +3,10 @@
 #include "nso.h"
 #include "fwding.h"
 #include "arp.h"
+#include "nso.h"
+#include <arpa/inet.h>
+
+extern nso_layer_t nso_layer;
 
 int son_init() {
     return 0;
@@ -160,7 +164,7 @@ static void __route_update(nso_layer_t *nsol, packet_t *pkt, nso_if_t *iface) {
             goto exit;
         }
         //update routes
-        uint8_t *rt_data = *(pkt->data + sizeof(*hdr) + 1);
+        uint8_t *rt_data = pkt->data + sizeof(*hdr) + 1;
         int size = pkt->byte_len - sizeof(*hdr) - 1;
         rt_rule_t *rule;
         while (size > 0) {
@@ -197,7 +201,7 @@ static void __route_update(nso_layer_t *nsol, packet_t *pkt, nso_if_t *iface) {
         assert(size == 0);
     } else {
         pthread_mutex_lock(&nsol->state_lock);
-        int ret = nsol->dev_stte == NRG5_CONNECTED;
+        int ret = nsol->dev_state == NRG5_CONNECTED;
         pthread_mutex_unlock(&nsol->state_lock);
         if (!ret) {
             LOG_DEBUG("drop receieved route update!\n");
@@ -209,7 +213,7 @@ exit:
     free_device_id(pkt_dst_id);
 }
 
-static void __neighbor_maintain(nsol_layer_t *nsol, packet_t *pkt, l2addr_t *src, l2addr_t *dst, nso_if_t *iface) {
+static void __neighbor_maintain(nso_layer_t *nsol, packet_t *pkt, l2addr_t *src, l2addr_t *dst, nso_if_t *iface) {
     struct nsohdr *hdr = (struct nsohdr*)pkt->data;
     device_id_t *dev_id = alloc_device_id(hdr->src_devid);
     //maintain arp table

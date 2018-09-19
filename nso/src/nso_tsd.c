@@ -4,6 +4,7 @@
 #include "packet.h"
 #include "nso_aaa.h"
 #include <arpa/inet.h>
+#include "nso_common.h"
 
 extern nso_layer_t nso_layer;
 static nso_tsd_t nso_tsd;

@@ -10,7 +10,7 @@ packet_t* pq_get_packet(pq_t *pq) {
     pq_entry_t *pq_e = NULL;
     packet_t *pkt = NULL;
     if (!list_empty(&pq->pq_head)) {
-        pq_e = list_first_entry(&pq->head, pq_entry_t, ll);
+        pq_e = list_first_entry(&pq->pq_head, pq_entry_t, ll);
         list_del(&pq_e->ll);
         pkt = pq_e->pkt;
         free(pq_e);

@@ -13,7 +13,5 @@ int nso_get_mtu() {
     return nso_layer_get_mtu();
 }
 
-#endif
-
 
 
