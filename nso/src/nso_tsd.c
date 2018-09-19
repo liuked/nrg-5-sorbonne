@@ -32,14 +32,19 @@ static packet_t* __get_nso_beacon(nso_layer_t *nsol) {
     *type = NSO_TSD_MSG_REG;
 
     int aaa_len;
-    if (aaa_get_credentials(nso_hdr->src_devid, DEV_ID_WIDTH, 
-                aaa_data, &aaa_len) < 0) {
-        LOG_DEBUG("unable to get credential!\n");
-        free_packet(pkt);
-        return NULL;
+    if (nsol->aaa_cred_size == 0) {
+        if (aaa_get_credentials(nso_hdr->src_devid, DEV_ID_WIDTH, 
+                    nsol->aaa_reg_cred, &nsol->aaa_cred_size) < 0) {
+            LOG_DEBUG("unable to get credential!\n");
+            free_packet(pkt);
+            return NULL;
+        }
     }
+    memcpy(aaa_data, nsol->aaa_reg_cred, nsol->aaa_cred_size);
+    aaa_len = nsol->aaa_cred_size;
+
     nso_hdr->length = aaa_len + sizeof(struct nsohdr) + sizeof(*type);
-    
+
     //maintain pointers
     packet_inc_len(pkt, nso_hdr->length);
     nso_hdr->len_ver = htons(nso_hdr->len_ver);

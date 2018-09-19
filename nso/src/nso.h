@@ -76,6 +76,8 @@ typedef struct {
     //aaa configuration
     int aaa_port;
     struct in_addr aaa_addr;
+    uint8_t aaa_reg_cred[1024];
+    int aaa_cred_size;
 
 } nso_layer_t;
 
