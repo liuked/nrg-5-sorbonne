@@ -177,7 +177,8 @@ static void __process_reg_reply(nso_layer_t *nsol, packet_t *pkt, l2addr_t *src,
             fwd_table_add(nsol->local_fwdt, fwd_e);
 
             nsol->gw_id = alloc_device_id((uint8_t*)src_id);
-            nsol->dev_state = NRG5_REG;
+	    //FIXME: now just set it to CONNECTED for testing 
+            nsol->dev_state = NRG5_CONNECTED;
 	    LOG_DEBUG("dev state change to NRG5-REG!\n");
             pthread_cond_broadcast(&nsol->state_signal);
         } else {

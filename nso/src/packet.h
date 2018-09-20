@@ -77,10 +77,20 @@ static packet_t* packet_clone(packet_t *pkt) {
     packet_t *new_pkt;
     new_pkt = alloc_packet(pkt->size);
     new_pkt->byte_len = pkt->byte_len;
-    new_pkt->data = pkt->data;
-    new_pkt->tail = pkt->tail;
+    new_pkt->data = new_pkt->buf + (pkt->data - pkt->buf);
+    new_pkt->tail = new_pkt->data + new_pkt->byte_len;
     memcpy(new_pkt->data, pkt->data, pkt->byte_len);
     return new_pkt;
+}
+
+static inline void debug_packet(packet_t *pkt) {
+    int i;
+    for (i = 0; i < pkt->byte_len; i++) {
+        printf("%02X ", pkt->data[i]);
+        if (((i+1)%16) == 0)
+	    printf("\n");
+    }
+    printf("\n");
 }
 
 #endif

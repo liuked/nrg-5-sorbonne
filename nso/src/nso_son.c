@@ -157,7 +157,9 @@ static void __route_update(nso_layer_t *nsol, packet_t *pkt, nso_if_t *iface) {
     if (device_id_equal(pkt_dst_id, nsol->dev_id)) {
         //is for me
         pthread_mutex_lock(&nsol->state_lock);
-        int ret = nsol->dev_state == NRG5_REG || nsol->dev_state == NRG5_CONNECTED;
+	if (nsol->dev_state == NRG5_REG)
+		nsol->dev_state = NRG5_CONNECTED;
+        int ret = nsol->dev_state == NRG5_CONNECTED;
         pthread_mutex_unlock(&nsol->state_lock);
         if (!ret) {
             LOG_DEBUG("drop received route update pkt\n");

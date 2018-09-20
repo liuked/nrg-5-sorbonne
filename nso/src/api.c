@@ -13,5 +13,8 @@ int nso_get_mtu() {
     return nso_layer_get_mtu();
 }
 
+int nso_get_device_id(nso_addr_t *dev_id){
+    return nso_layer_get_device_id((device_id_t*)dev_id);
+}
 
 

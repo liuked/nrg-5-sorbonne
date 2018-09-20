@@ -7,8 +7,10 @@
 #define ERROR_BASE -1
 #define ERROR_NOT_READY (ERROR_BASE - 1)
 
+#define NSO_ADDR_LEN DEV_ID_WIDTH
+
 typedef struct __attribute__((packed)) {
-    uint8_t addr[DEV_ID_WIDTH];
+    uint8_t addr[NSO_ADDR_LEN];
 }nso_addr_t;
 
 /*
@@ -57,5 +59,15 @@ int nso_receive(uint8_t *buf, int size, nso_addr_t *src, nso_addr_t *dst, uint16
  *          negative number means a error occurs;
  * */
 int nso_get_mtu();
+
+/*
+ * This function is used by upper layer to retrieve the self's 
+ * device id.
+ * ---------------------------------------------------------
+ * @parameter: dev_id: used to return the device id
+ * @return: 0;
+ *          others == error;
+ * */
+int nso_get_device_id(nso_addr_t *dev_id);
 
 #endif

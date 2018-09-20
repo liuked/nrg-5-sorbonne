@@ -167,8 +167,10 @@ static void data_process_rx(packet_t *pkt, l2addr_t *src,
     device_id_t *dst_id = alloc_device_id((uint8_t*)hdr->dst_devid);
     if (device_id_equal(dst_id, nso_layer.dev_id)) {
         //is for me
-        packet_t *new_pkt = packet_clone(pkt);
         pthread_mutex_lock(&nso_layer.data_lock);
+        packet_t *new_pkt = packet_clone(pkt);
+	printf("enqueue pkt:\n");
+	debug_packet(new_pkt);
         int notify = pq_empty(&nso_layer.data_pq);
         pq_put_packet(&nso_layer.data_pq, new_pkt);
         if (notify) {
@@ -237,7 +239,9 @@ restart_registration:
     //send first topo report
     son_topo_report();
 
+    //FIXME: now, just turn off this step
     //wait for first routes update
+    /*
     pthread_mutex_lock(&nso_layer.state_lock);
     make_timeout(&timeout, nso_layer.timeout_ms);
     pthread_cond_timedwait(&nso_layer.state_signal, &nso_layer.state_lock, &timeout);
@@ -248,6 +252,7 @@ restart_registration:
         goto restart_registration;
     }
     pthread_mutex_unlock(&nso_layer.state_lock);
+    */
 
     //send periodical report & neighbor advertisement
     pthread_mutex_lock(&nso_layer.state_lock);
@@ -370,6 +375,9 @@ int nso_layer_recv(uint8_t *buf, int size, device_id_t *src, device_id_t *dst, u
     pkt = pq_get_packet(&nso_layer.data_pq);
     pthread_mutex_unlock(&nso_layer.data_lock);
 
+    printf("dequeue pkt:\n");
+    debug_packet(pkt);
+
     //now we have the packet
     struct nsohdr *hdr = (struct nsohdr*)pkt->data;
     if (src)
@@ -431,3 +439,8 @@ int nso_layer_send(uint8_t *buf, int size, device_id_t *dst, uint16_t proto) {
 
 }
 
+
+int nso_layer_get_device_id(device_id_t *dev_id) {
+    assign_device_id(dev_id, (uint8_t*)nso_layer.dev_id);
+    return 0;
+}
