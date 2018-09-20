@@ -6,6 +6,7 @@ import json, struct
 import logging
 import requests
 
+logging.basicConfig(level=logging.DEBUG)
 sys.path.append(os.path.abspath(os.path.join("..")))
 from common.Def import *
 
@@ -36,7 +37,7 @@ class Listener(object):
 
     def __generate_device_reg_reply(self, dst, src, answer):
         # 8B src, 8B dst, 2B proto, 2B len, 1B MSG_TYPE, 1B ANSWER
-        msg = struct.pack("!QQHHBB", src, dst, PROTO.TSD.value, NSO_HDR_LEN + 2, MSGTYPE.DEV_REG_REPLY.value, answer)
+        msg = struct.pack("!QQHHBB", src, dst, PROTO.TSD.value, NSO_HDR_LEN + 2, MSGTYPE.BS_REG_REPLY.value, answer)
         return msg
 
     def __generate_unsupported_msgtype_err(self, src, dst):
@@ -78,7 +79,7 @@ class Listener(object):
         logging.info("Chechink auth...")
         # response = requests.post(vAAA_URL, json=msg)
         response = self.__device_is_authenticated(jdata[u"message"], jdata[u"signature"])
-        if response == 200:
+        if response == True:
             logging.info("Authentication {}SUCCEED{}".format(frm.OKGREEN, frm.ENDC))
             reply = self.__generate_device_reg_reply(src, dst, ANSWER.SUCCESS.value)
         else:
@@ -134,8 +135,8 @@ class Listener(object):
 
         while True:
             response = raw_input(
-                "Incoming registration request from {}, cred: {}. Do you want to accept it? (yes/no) ").format(uuid,
-                                                                                                               credentials)
+                "Incoming registration request from {}, cred: {}. Do you want to accept it? (yes/no) ".format(uuid,
+                                                                                                               credentials))
             if (response == "yes") or (response == "no"):
                 break
         if response == "yes":
