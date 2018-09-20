@@ -5,12 +5,13 @@
 #include "arp.h"
 #include "nso.h"
 #include <arpa/inet.h>
+#include "bs_util.h"
 
 extern nso_layer_t nso_layer;
 static son_data_t son;
 
 int son_init() {
-    nso_layer_t *nsol = &nsol_layer;
+    nso_layer_t *nsol = &nso_layer;
     bspc_entry_t *pos = bspc_table_lookup(nsol->bspc_tbl, NSO_PROTO_CP_VSON);
     son.vson_fd = pos->sockfd;
     return 0;

@@ -20,7 +20,7 @@ void bspc_table_init(bspc_table_t *tbl) {
 int bspc_table_add(bspc_table_t *tbl, bspc_entry_t *e) {
     assert(tbl);
     assert(e);
-    list_add(&e->ll, &tbl->list_head);
+    list_add(&e->ll, &tbl->ll_head);
     hash_add(tbl->ht_proto, &e->hl, e->proto);
     tbl->size++;
     return 0;

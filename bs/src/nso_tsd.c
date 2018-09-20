@@ -5,6 +5,7 @@
 #include "nso_aaa.h"
 #include <arpa/inet.h>
 #include "nso_common.h"
+#include "bs_util.h"
 
 extern nso_layer_t nso_layer;
 static tsd_data_t tsd;
@@ -49,7 +50,7 @@ static packet_t* __get_bs_reg_pkt(nso_layer_t *nsol) {
 }
 
 int tsd_init() {
-    nso_layer_t *nsol = &nsol_layer;
+    nso_layer_t *nsol = &nso_layer;
     bspc_entry_t *pos;
     pos = bspc_table_lookup(nsol->bspc_tbl, NSO_PROTO_CP_VTSD);
     tsd.vtsd_fd = pos->sockfd;

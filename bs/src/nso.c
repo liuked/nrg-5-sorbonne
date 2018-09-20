@@ -1,5 +1,7 @@
 #include "nso.h"
 #include "nso_aaa.h"
+#include <sys/select.h>
+#include <sys/types.h>
 #include "nso_tsd.h"
 #include "nso_son.h"
 #include <unistd.h>
@@ -272,7 +274,7 @@ restart_registration:
 
 static void* __vnf_rx_thread_main(void *arg) {
     //prepare the fd_set
-    struct fd_set master_fds, working_fds;
+    fd_set master_fds, working_fds;
     int max_fd = -1;
     bspc_entry_t *pos = NULL;
     FD_ZERO(&master_fds);
@@ -294,7 +296,7 @@ static void* __vnf_rx_thread_main(void *arg) {
                     pkt = read_pkt_from_vnf(curr_fd, nso_layer.mtu);
                     struct nsohdr *hdr = (struct nsohdr*)pkt->data;
                     device_id_t *dst_devid = alloc_device_id(hdr->dst_devid);
-                    if (deivce_id_equal(dst_devid, nso_layer.dev_id)) {
+                    if (device_id_equal(dst_devid, nso_layer.dev_id)) {
                         //vnf process
                         switch(ntohs(hdr->proto)){
                             case NSO_PROTO_CP_VTSD:
