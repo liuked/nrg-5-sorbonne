@@ -162,7 +162,6 @@ static void data_process_rx(packet_t *pkt, l2addr_t *src,
         LOG_DEBUG("drop received data packet");
         return;
     }
-
     //receive or forward packet
     struct nsohdr *hdr = (struct nsohdr*)pkt->data;
     device_id_t *dst_id = alloc_device_id((uint8_t*)hdr->dst_devid);
@@ -187,6 +186,7 @@ static void* __rx_thread_main(void *arg) {
     nso_if_t *iface = nso_layer.ifaces[if_id];
     packet_t *pkt = alloc_packet(nso_layer.mtu);
     l2addr_t *src, *dst;
+    LOG_DEBUG("rx thread start at %s\n", iface->if_name);
     while (1) {
         //@MARK: pkt,src,dst are allocated from heap memory
         int ret = nso_if_receive(iface, pkt, &src, &dst);
@@ -194,13 +194,16 @@ static void* __rx_thread_main(void *arg) {
 
         switch(ntohs(hdr->proto)){
             case NSO_PROTO_CP_VTSD:
+		LOG_DEBUG("receive a vtsd pkt!\n");
                 tsd_process_rx(pkt, src, dst, iface);
                 break;
             case NSO_PROTO_CP_VSON:
+		LOG_DEBUG("receive a vson pkt!\n");
                 son_process_rx(pkt, src, dst, iface);
                 break;
             default:
                 //data packet
+		LOG_DEBUG("receive a data pkt!\n");
                 data_process_rx(pkt, src, dst, iface);
                 break;
         }
@@ -221,6 +224,7 @@ restart_registration:
         pthread_mutex_unlock(&nso_layer.state_lock);
         //broadcast
         tsd_broadcast_beacons();
+	LOG_DEBUG("broadcast a beacon\n");
         //wait for registration success
         pthread_mutex_lock(&nso_layer.state_lock);
         make_timeout(&timeout, nso_layer.timeout_ms);
@@ -240,6 +244,7 @@ restart_registration:
     //once the first routes update is received, rx thread will update son table and set dev_state to NRG5_CONNECTED
     if (nso_layer.dev_state != NRG5_CONNECTED) {
         LOG_DEBUG("timeout for waiting first vSON route update!\n");
+	nso_layer.dev_state = NRG5_UNREG;
         goto restart_registration;
     }
     pthread_mutex_unlock(&nso_layer.state_lock);

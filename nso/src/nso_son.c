@@ -229,9 +229,10 @@ static void __neighbor_maintain(nso_layer_t *nsol, packet_t *pkt, l2addr_t *src,
         arp_e = alloc_arp_entry(dev_id_copy, mac);
         arp_table_add(nsol->arpt, arp_e);
     }
+    //LOG_DEBUG("ARP maintained!\n");
     //maintain neighbor table
     nbr_table_lock(nsol->nbrt);
-    nbr_entry_t *nbr_e = nbr_table_lookup(nsol->nbrt, dev_id);
+    nbr_entry_t *nbr_e = nbr_table_lookup_unsafe(nsol->nbrt, dev_id);
     if (nbr_e) {
         nbr_e->status = NBR_ACTIVE;
         nbr_table_unlock(nsol->nbrt);
@@ -242,6 +243,7 @@ static void __neighbor_maintain(nso_layer_t *nsol, packet_t *pkt, l2addr_t *src,
         nbr_e = alloc_nbr_entry(dev_id_copy, m, iface);
         nbr_table_add(nsol->nbrt, nbr_e);
     }
+    //LOG_DEBUG("nbr maintained!\n");
 }
 
 static void __fwd_topo_report(nso_layer_t *nsol, packet_t *pkt) {
@@ -260,17 +262,21 @@ int son_process_rx(packet_t *pkt, l2addr_t *src, l2addr_t *dst, nso_if_t *iface)
     nso_layer_t *nsol = &nso_layer;
     switch(type){
         case NSO_SON_MSG_RT:
+	    //LOG_DEBUG("route update!\n");
             __route_update(nsol, pkt, iface);
             break;
         case NSO_SON_MSG_NBR:
+	    //LOG_DEBUG("msg nbr!\n");
             __neighbor_maintain(nsol, pkt, src, dst, iface);
             break;
         case NSO_SON_MSG_TOPO:
+	    //LOG_DEBUG("topo report!\n");
             __fwd_topo_report(nsol, pkt);
             break;
         default:
             LOG_DEBUG("unknown son message!\n");
             return -1;
     }
+    //LOG_DEBUG("son_process_rx finised!\n");
     return 0;
 }

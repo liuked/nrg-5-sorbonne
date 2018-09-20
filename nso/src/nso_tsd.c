@@ -178,6 +178,7 @@ static void __process_reg_reply(nso_layer_t *nsol, packet_t *pkt, l2addr_t *src,
 
             nsol->gw_id = alloc_device_id((uint8_t*)src_id);
             nsol->dev_state = NRG5_REG;
+	    LOG_DEBUG("dev state change to NRG5-REG!\n");
             pthread_cond_broadcast(&nsol->state_signal);
         } else {
             LOG_DEBUG("drop received beacon reply\n");
