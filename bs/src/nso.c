@@ -208,6 +208,7 @@ static void* __rx_thread_main(void *arg) {
     nso_if_t *iface = nso_layer.ifaces[if_id];
     packet_t *pkt = alloc_packet(nso_layer.mtu);
     l2addr_t *src, *dst;
+    LOG_DEBUG("__rx_thread start at iface %s\n", iface->if_name);
     while (1) {
         //@MARK: pkt,src,dst are allocated from heap memory
         int ret = nso_if_receive(iface, pkt, &src, &dst);
@@ -215,13 +216,16 @@ static void* __rx_thread_main(void *arg) {
 
         switch(ntohs(hdr->proto)){
             case NSO_PROTO_CP_VTSD:
+                LOG_DEBUG("receive a VTSD pkt!\n");
                 tsd_process_rx(pkt, src, dst, iface);
                 break;
             case NSO_PROTO_CP_VSON:
+                LOG_DEBUG("receive a vSON pkt!\n");
                 son_process_rx(pkt, src, dst, iface);
                 break;
             default:
                 //data packet
+                LOG_DEBUG("receive a data pkt!\n");
                 data_process_rx(pkt, src, dst, iface);
                 break;
         }
@@ -242,6 +246,7 @@ restart_registration:
         pthread_mutex_unlock(&nso_layer.state_lock);
         //broadcast
         tsd_bs_reg();
+        LOG_DEBUG("send a bs registration to vTSD!\n");
         //wait for registration success
         pthread_mutex_lock(&nso_layer.state_lock);
         make_timeout(&timeout, nso_layer.timeout_ms);
@@ -283,6 +288,7 @@ static void* __vnf_rx_thread_main(void *arg) {
         if (pos->sockfd > max_fd)
             max_fd = pos->sockfd;
     }
+    LOG_DEBUG("vnf rx thread start to work!\n");
 
     while (1) {
         memcpy(&working_fds, &master_fds, sizeof(master_fds));
@@ -297,8 +303,8 @@ static void* __vnf_rx_thread_main(void *arg) {
                     struct nsohdr *hdr = (struct nsohdr*)pkt->data;
                     device_id_t *dst_devid = alloc_device_id(hdr->dst_devid);
                     if (device_id_equal(dst_devid, nso_layer.dev_id)) {
-                        LOG_DEBUG("read a pkt for me\n");
                         //vnf process
+                        LOG_DEBUG("receive a pkt for me !\n");
                         switch(ntohs(hdr->proto)){
                             case NSO_PROTO_CP_VTSD:
                                 tsd_process_rx(pkt, NULL, NULL, NULL);
@@ -312,6 +318,7 @@ static void* __vnf_rx_thread_main(void *arg) {
                         }
                     } else {
                         //nso_fwd
+                        LOG_DEBUG("forward a pkt to WSN!\n");
                         nso_layer_fwd(pkt);
                     }
                     free_packet(pkt);

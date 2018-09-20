@@ -58,7 +58,6 @@ class vtsd(object):
 
     def __process_dev_reg(self, src, dst, msg):
 
-
         logging.info("Processing DEV_REG message {}".format(msg))
 
         jdata = json.loads(msg)
