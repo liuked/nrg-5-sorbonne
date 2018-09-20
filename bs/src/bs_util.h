@@ -45,8 +45,10 @@ static packet_t* read_pkt_from_vnf(int sockfd, int size) {
     hdr->len_ver = ntohs(hdr->len_ver);
     int len = hdr->length;
     hdr->len_ver = htons(hdr->len_ver);
+	
+    LOG_DEBUG("message len %d\n", len);
 
-    __fully_recv(sockfd, pkt->data + sizeof(struct nsohdr), len);
+    __fully_recv(sockfd, pkt->data + sizeof(struct nsohdr), len - sizeof(struct nsohdr));
 
     pkt->byte_len = sizeof(struct nsohdr) + len;
     pkt->tail = pkt->data + pkt->byte_len;

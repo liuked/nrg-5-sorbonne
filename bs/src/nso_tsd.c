@@ -212,6 +212,7 @@ static void __process_bs_reg_reply(nso_layer_t *nsol, packet_t *pkt) {
             LOG_DEBUG("drop received bs beacon reply\n");
         }
         pthread_mutex_unlock(&nsol->state_lock);
+        LOG_DEBUG("receive reply from %lld answer is %d\n", *dst_id, ans);
     }
     free_device_id(dst_id);
 }

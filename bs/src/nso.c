@@ -297,6 +297,7 @@ static void* __vnf_rx_thread_main(void *arg) {
                     struct nsohdr *hdr = (struct nsohdr*)pkt->data;
                     device_id_t *dst_devid = alloc_device_id(hdr->dst_devid);
                     if (device_id_equal(dst_devid, nso_layer.dev_id)) {
+                        LOG_DEBUG("read a pkt for me\n");
                         //vnf process
                         switch(ntohs(hdr->proto)){
                             case NSO_PROTO_CP_VTSD:

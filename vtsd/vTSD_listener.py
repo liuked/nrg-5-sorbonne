@@ -6,6 +6,7 @@ import logging
 
 logging.basicConfig(level=logging.DEBUG)
 sys.path.append(os.path.abspath(os.path.join("..")))
+from common.Def import *
 
 from optparse import OptionParser
 
@@ -34,7 +35,7 @@ class vtsd(object):
 
     def __generate_device_reg_reply(self, dst, src, answer):
         # 8B src, 8B dst, 2B proto, 2B len, 1B MSG_TYPE, 1B ANSWER
-        msg = struct.pack("!QQHHBB", src, dst, PROTO.TSD.value, NSO_HDR_LEN + 2, MSGTYPE.BS_REG_REPLY.value, answer)
+        msg = struct.pack("!QQHHBB", src, dst, PROTO.TSD.value, NSO_HDR_LEN + 2, MSGTYPE.DEV_REG_REPLY.value, answer)
         return msg
 
     def __generate_bs_reg_reply(self, dst, src, answer):
@@ -44,7 +45,7 @@ class vtsd(object):
 
     def __generate_unsupported_msgtype_err(self, src, dst):
         # 8B src, 8B dst, 2B proto, 2B len, 1B MSG_TYPE, 1B ANSWER
-        msg = struct.pack("!QQHHB", src, dst, PROTO.TSD.value, NSO_HDR_LEN + 2, MSGTYPE.UNSUPPORTED_MSGTYPE_ERROR.value)
+        msg = struct.pack("!QQHHB", src, dst, PROTO.TSD.value, NSO_HDR_LEN + 1, MSGTYPE.UNSUPPORTED_MSGTYPE_ERROR.value)
         return msg
 
     def __receive_nso_hdr(self, sock):
@@ -62,10 +63,12 @@ class vtsd(object):
 
         jdata = json.loads(msg)
 
+        logging.info(jdata)
+
         logging.info("Chechink auth...")
         # response = requests.post(vAAA_URL, json=msg)
-        response = self.__device_is_authenticated(jdata[u"message"], jdata[u"signature"])
-        if response == 200 :
+        response = self.__device_is_authenticated(jdata["message"], jdata["signature"])
+        if response:
             logging.info("Authentication {}SUCCEED{}".format(frm.OKGREEN, frm.ENDC))
             reply = self.__generate_device_reg_reply(src, dst, ANSWER.SUCCESS.value)
         else:
@@ -77,6 +80,8 @@ class vtsd(object):
         logging.info("Received BS_REG message: {}".format(msg))
 
         jdata = json.loads(msg)
+
+        logging.info(jdata)
 
         logging.info("Chechink auth...")
         # response = requests.post(vAAA_URL, json=msg)
@@ -135,11 +140,10 @@ class vtsd(object):
         response = False
 
         while True:
-            response = raw_input(
-                "Incoming registration request from {}, cred: {}. Do you want to accept it? (yes/no) ".format(uuid,
-                                                                                                               credentials))
+            response = raw_input("Incoming registration request, Do you want to accept it? (yes/no) ")
             if (response == "yes") or (response == "no"):
                 break
+
         if response == "yes":
             return True
         else:
@@ -166,4 +170,4 @@ if __name__ == "__main__":
             print "vTSD_listener:main: Invalid port number. Abort..."
             exit(1)
 
-    Listener('', port_num).listen()
+    vtsd('', port_num).listen()
