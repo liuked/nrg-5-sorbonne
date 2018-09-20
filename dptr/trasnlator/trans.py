@@ -15,7 +15,7 @@ logging.basicConfig(level=logging.DEBUG)
 parser = argparse.ArgumentParser()
 parser.add_argument("-p", "--port", type=int, required=True, help="translator will be running on which port")
 parser.add_argument("--app_addr", required=True, help="application server's IP addr, e.g. 192.168.1.1")
-parser.add_argument("--app_port", required=True, help="application server's TCP port, e.g. 8080")
+parser.add_argument("--app_port", type=int, required=True, help="application server's TCP port, e.g. 8080")
 args = parser.parse_args()
 
 APP_ADDR = args.app_addr
@@ -25,7 +25,7 @@ HOST_PORT = args.port
 
 class _NsoInfo(object):
 
-    def __init(self, src_id, gw_id, proto):
+    def __init__(self, src_id, gw_id, proto):
         """
         src_id, gw_id = 8B 'str'
         proto = 2B 'short'
@@ -97,6 +97,7 @@ class service(socketserver.BaseRequestHandler):
                     logging.debug("socket recv from server error")
                     break
                 nso_data = __pack_nso_packet(nso_info, app_data)
+                logging.debug("sending message back to device: {}".format(nso_data))
                 self.request.sendall(nso_data)
 
         nso2tcp_map = _Nso2TcpMap()
@@ -127,5 +128,6 @@ class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     pass
 
 if __name__ == "__main__":
+    ThreadedTCPServer.allow_reuse_address = True
     server = ThreadedTCPServer((HOST_ADDR, HOST_PORT), service)
     server.serve_forever()

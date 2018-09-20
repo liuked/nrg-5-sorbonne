@@ -29,7 +29,6 @@ class vtsd(object):
         while True:
             client, address = self.sock.accept()
             logging.info("Receive connection from " + str(address))
-            client.settimeout(60)
             print threading.Thread(target=self.__listen_to_client, args=(client, address)).start()
             logging.debug("Opening a threaded socket for client: " + str(address))
 

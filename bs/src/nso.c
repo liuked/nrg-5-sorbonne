@@ -192,6 +192,7 @@ static void data_process_rx(packet_t *pkt, l2addr_t *src,
     device_id_t *dst_id = alloc_device_id((uint8_t*)hdr->dst_devid);
     if (device_id_equal(dst_id, nso_layer.dev_id)) {
         //is for me, forward to dptr
+        LOG_DEBUG("forward data pkt to dptr!\n");
         struct nsohdr *hdr = (struct nsohdr*)pkt->data;
         int proto = ntohs(hdr->proto);
         bspc_entry_t *pos = bspc_table_lookup(nso_layer.bspc_tbl, proto);
@@ -199,6 +200,7 @@ static void data_process_rx(packet_t *pkt, l2addr_t *src,
         send_pkt_to_vnf(dptr_fd, pkt);
     } else {
         //forward it
+        LOG_DEBUG("forward data packet to WSN!\n");
         nso_layer_fwd(pkt);
     }
 }

@@ -37,5 +37,6 @@ class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     pass
 
 if __name__ == "__main__":
+    ThreadedTCPServer.allow_reuse_addr = True
     server = ThreadedTCPServer((HOST_ADDR, HOST_PORT), service)
     server.serve_forever()
