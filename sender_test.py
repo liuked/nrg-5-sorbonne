@@ -4,7 +4,7 @@ import json
 import struct
 
 sys.path.append(os.path.abspath(os.path.join("..")))
-from common.Def import *
+
 
 class Sender(object):
 
