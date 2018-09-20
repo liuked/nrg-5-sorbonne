@@ -129,3 +129,16 @@ void nbr_table_lock(nbr_table_t *tbl) {
 void nbr_table_unlock(nbr_table_t *tbl) {
     pthread_mutex_unlock(&tbl->nbrt_lock);
 }
+
+nbr_entry_t* nbr_table_lookup_unsafe(nbr_table_t *tbl, device_id_t *dev_id) {
+    assert(tbl);
+    assert(dev_id);
+    nbr_entry_t *pos = NULL;
+
+    hash_for_each_possible(tbl->ht_dev_id, pos, hl_devid, hash_device_id(dev_id)) {
+        if (device_id_equal(dev_id, pos->dev_id))
+            break;
+    }
+    return pos;
+}
+

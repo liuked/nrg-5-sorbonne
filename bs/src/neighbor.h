@@ -105,6 +105,7 @@ int nbr_table_size(nbr_table_t *tbl);
 
 void nbr_table_lock(nbr_table_t *tbl);
 void nbr_table_unlock(nbr_table_t *tbl);
+nbr_entry_t* nbr_table_lookup_unsafe(nbr_table_t *, device_id_t*);
 
 #define nbr_table_iterate(ptr, tbl) \
     list_for_each_entry(ptr, &tbl->ll_head, ll)

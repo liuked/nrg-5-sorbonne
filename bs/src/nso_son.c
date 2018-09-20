@@ -236,7 +236,7 @@ static void __neighbor_maintain(nso_layer_t *nsol, packet_t *pkt, l2addr_t *src,
     }
     //maintain neighbor table
     nbr_table_lock(nsol->nbrt);
-    nbr_entry_t *nbr_e = nbr_table_lookup(nsol->nbrt, dev_id);
+    nbr_entry_t *nbr_e = nbr_table_lookup_unsafe(nsol->nbrt, dev_id);
     if (nbr_e) {
         nbr_e->status = NBR_ACTIVE;
         nbr_table_unlock(nsol->nbrt);
