@@ -9,3 +9,4 @@ test_arp_LDADD=$(top_srcdir)/src/nso_lib/libnso.a
 test_nbr_LDADD=$(top_srcdir)/src/nso_lib/libnso.a
 test_fwd_LDADD=$(top_srcdir)/src/nso_lib/libnso.a
 test_wifi_LDADD=$(top_srcdir)/src/nso_lib/libnso.a
+INCLUDES=-I$(top_srcdir)/src/nso_lib/include
