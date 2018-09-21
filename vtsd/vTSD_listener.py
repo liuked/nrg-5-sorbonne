@@ -7,7 +7,7 @@ import logging
 sys.path.append(os.path.abspath(os.path.join("..")))
 
 
-from common import *
+from common.Def import *
 from optparse import OptionParser
 
 
