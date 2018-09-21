@@ -169,8 +169,8 @@ static void data_process_rx(packet_t *pkt, l2addr_t *src,
         //is for me
         pthread_mutex_lock(&nso_layer.data_lock);
         packet_t *new_pkt = packet_clone(pkt);
-	printf("enqueue pkt:\n");
-	debug_packet(new_pkt);
+        //printf("enqueue pkt:\n");
+        //debug_packet(new_pkt);
         int notify = pq_empty(&nso_layer.data_pq);
         pq_put_packet(&nso_layer.data_pq, new_pkt);
         if (notify) {
@@ -196,16 +196,16 @@ static void* __rx_thread_main(void *arg) {
 
         switch(ntohs(hdr->proto)){
             case NSO_PROTO_CP_VTSD:
-		LOG_DEBUG("receive a vtsd pkt!\n");
+                LOG_DEBUG("receive a vtsd pkt!\n");
                 tsd_process_rx(pkt, src, dst, iface);
                 break;
             case NSO_PROTO_CP_VSON:
-		LOG_DEBUG("receive a vson pkt!\n");
+                LOG_DEBUG("receive a vson pkt!\n");
                 son_process_rx(pkt, src, dst, iface);
                 break;
             default:
                 //data packet
-		LOG_DEBUG("receive a data pkt!\n");
+                LOG_DEBUG("receive a data pkt!\n");
                 data_process_rx(pkt, src, dst, iface);
                 break;
         }
@@ -226,7 +226,7 @@ restart_registration:
         pthread_mutex_unlock(&nso_layer.state_lock);
         //broadcast
         tsd_broadcast_beacons();
-	LOG_DEBUG("broadcast a beacon\n");
+        LOG_DEBUG("broadcast a beacon\n");
         //wait for registration success
         pthread_mutex_lock(&nso_layer.state_lock);
         make_timeout(&timeout, nso_layer.timeout_ms);
@@ -242,14 +242,14 @@ restart_registration:
     //FIXME: now, just turn off this step
     //wait for first routes update
     /*
-    pthread_mutex_lock(&nso_layer.state_lock);
-    make_timeout(&timeout, nso_layer.timeout_ms);
-    pthread_cond_timedwait(&nso_layer.state_signal, &nso_layer.state_lock, &timeout);
+       pthread_mutex_lock(&nso_layer.state_lock);
+       make_timeout(&timeout, nso_layer.timeout_ms);
+       pthread_cond_timedwait(&nso_layer.state_signal, &nso_layer.state_lock, &timeout);
     //once the first routes update is received, rx thread will update son table and set dev_state to NRG5_CONNECTED
     if (nso_layer.dev_state != NRG5_CONNECTED) {
-        LOG_DEBUG("timeout for waiting first vSON route update!\n");
-	nso_layer.dev_state = NRG5_UNREG;
-        goto restart_registration;
+    LOG_DEBUG("timeout for waiting first vSON route update!\n");
+    nso_layer.dev_state = NRG5_UNREG;
+    goto restart_registration;
     }
     pthread_mutex_unlock(&nso_layer.state_lock);
     */
@@ -375,8 +375,8 @@ int nso_layer_recv(uint8_t *buf, int size, device_id_t *src, device_id_t *dst, u
     pkt = pq_get_packet(&nso_layer.data_pq);
     pthread_mutex_unlock(&nso_layer.data_lock);
 
-    printf("dequeue pkt:\n");
-    debug_packet(pkt);
+    //printf("dequeue pkt:\n");
+    //debug_packet(pkt);
 
     //now we have the packet
     struct nsohdr *hdr = (struct nsohdr*)pkt->data;

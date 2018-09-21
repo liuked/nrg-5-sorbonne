@@ -40,6 +40,7 @@ class service(socketserver.BaseRequestHandler):
             url = "{}:{}/recv?id={}".format(WEB_ADDR, WEB_PORT, hex(dev_id))
             with request.urlopen(url) as f:
                 response = f.read().decode("utf-8")
+                logging.debug("receive command from webserver: {}".format(response))
                 if response == "start":
                     ret = struct.pack("!B", 1)
                 else:
