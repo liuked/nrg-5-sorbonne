@@ -11,3 +11,4 @@ test_fwd_LDADD=$(top_srcdir)/src/bs_lib/libbs.a
 test_nbr_LDADD=$(top_srcdir)/src/bs_lib/libbs.a
 test_nso_LDADD=$(top_srcdir)/src/bs_lib/libbs.a
 
+INCLUDES=-I$(top_srcdir)/src/bs_lib/include

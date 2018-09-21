@@ -10,16 +10,15 @@ from common.Def import *
 
 class RESTfulAPI:
 
-    def __init__(self):
+    def __init__(self, api_port):
         self.app = Flask(__name__)
         self.api = Api(self.app)
 
         self.api.add_resource(RESTNode, "/topology/nodes/<string:str_ID>")
         self.api.add_resource(RESTTopo, "/topology")
 
-        self.app.run()
+        self.app.run(port=api_port)
         logging.debug("Opening a thread for rest API")
-
 
 
 

@@ -34,20 +34,10 @@ class vson(object):
             logging.debug("Opening a threaded socket for client: " + str(address))
 
 
-
-
-    def __generate_device_reg_reply(self, dst, src, answer):
-        # 8B src, 8B dst, 2B proto, 2B len, 1B MSG_TYPE, 1B ANSWER
-        msg = struct.pack("!QQHHBB", src, dst, PROTO.SON, NSO_HDR_LEN + 2, TSDMSG.DEV_REG_REPLY, answer)
-        return msg
-
-
-
     def __generate_unsupported_msgtype_err(self, src, dst):
         # 8B src, 8B dst, 2B proto, 2B len, 1B MSG_TYPE, 1B ANSWER
         msg = struct.pack("!QQHHB", src, dst, PROTO.SON, NSO_HDR_LEN + 1, TSDMSG.UNSUPPORTED_MSGTYPE_ERROR)
         return msg
-
 
 
     def __process_topo_repo(self, src, dst, msg):
@@ -58,7 +48,6 @@ class vson(object):
             logging.warning('Node {:X} not registered'.format(src))
         intfs = []
         nbrs = []
-
 
 
         # ## message format:
@@ -98,7 +87,8 @@ class vson(object):
 
         status, node = topo.put_node_info(src, battery=batt, intfs=intfs, nbrs=nbrs)
 
-        return self.__gen_topo_update_reply(src, dst, ANSWER.SUCCESS if status==STATUS.SUCCESS else ANSWER.FAIL)
+        return None
+        #return self.__gen_topo_update_reply(src, dst, ANSWER.SUCCESS if status==STATUS.SUCCESS else ANSWER.FAIL)
 
     def __gen_topo_update_reply(self, dst, src, answer):
         # 8B src, 8B dst, 2B proto, 2B len, 1B MSG_TYPE, 1B ANSWER
@@ -159,8 +149,10 @@ class vson(object):
                     else:
                         response = self.__generate_unsupported_msgtype_err(src, dst)
 
-                    client.send(response)
-                    logging.debug("Replying to " + str(address) + " with " + "{}".format(" ".join("{:02X}".format(ord(c)) for c in response)))
+
+                    if response:
+                        client.send(response)
+                        logging.debug("Replying to " + str(address) + " with " + "{}".format(" ".join("{:02X}".format(ord(c)) for c in response)))
 
             except NSOException as x:
                 logging.error(x.msg)

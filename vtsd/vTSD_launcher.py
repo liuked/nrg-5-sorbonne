@@ -11,13 +11,16 @@ from common.Def import *
 
 
 from common.Def import *
-from optparse import OptionParser
-
+import argparse
 
 
 ### set log destination
-logging.basicConfig(filename="vTSD.log", level=logging.DEBUG)
-
+#logging.basicConfig(filename="vTSD.log", level=logging.DEBUG)
+parser = argparse.ArgumentParser()
+parser.add_argument("-p", "--port", required=True, type=int, help="vtsd port")
+parser.add_argument("--vson_addr", required=True, help="vson addr")
+parser.add_argument("--vson_port", required=True, type=int, help="vson port")
+args = parser.parse_args()
 
 
 class vtsd(object):
@@ -60,12 +63,13 @@ class vtsd(object):
 
     def __generate_unsupported_msgtype_err(self, src, dst):
         # 8B src, 8B dst, 2B proto, 2B len, 1B MSG_TYPE, 1B ANSWER
-        msg = struct.pack("!QQHHB", src, dst, PROTO.TSD, NSO_HDR_LEN + 1, TSDMSG.UNSUPPORTED_MSGTYPE_ERROR.value)
+        msg = struct.pack("!QQHHB", src, dst, PROTO.TSD, NSO_HDR_LEN + 1, TSDMSG.UNSUPPORTED_MSGTYPE_ERROR)
         return msg
 
 
     def __notify_vSON(self, ID, jdata):
-        url = 'http://127.0.0.1:5000/'
+
+        url = 'http://{}:{}/'.format(args.vson_addr, args.vson_port)
         newID = hex(ID)
         payload = {
             'ID': newID,
@@ -87,27 +91,22 @@ class vtsd(object):
         logging.info("Chechink auth...")
         # response = requests.post(vAAA_URL, json=msg)
 
-        response = self.__device_is_authenticated(int(jdata["message"]), str(jdata["signature"]))
+        response = self.__device_is_authenticated((jdata["message"]), (jdata["signature"]))
 
         if response == 200:
             logging.info("Authentication {}SUCCEED{}".format(frm.OKGREEN, frm.ENDC))
 
             logging.info("Reporting to vSON node {}".format(hex(src)))
-
             vSONresponse = self.__notify_vSON(src, jdata)
-
-            # pool = ThreadPool(processes=1)
-            # async_result = pool.apply_async(self.__notify_vSON, (src, jdata))
-            # vSONresponse = async_result.get()
-            # logging.debug("received response from vSON: {}".format(vSONresponse))
-
             if vSONresponse.status_code == 200:
 
                 logging.info("vSON Registration {}SUCCEED{}".format(frm.OKGREEN, frm.ENDC))
                 return self.__generate_device_reg_reply(src, dst, ANSWER.SUCCESS)
 
             else:
-                logging.error(repr(vSONresponse.status_code) + ' ' + repr(vSONresponse.content))
+                logging.info(repr(vSONresponse.status_code) + ' ' + repr(vSONresponse.content))
+                logging.info("device already registered!\n")
+                return None
 
         logging.info("Authentication {}FAILED{}".format(frm.FAIL, frm.ENDC))
         return self.__generate_device_reg_reply(src, dst, ANSWER.FAIL)
@@ -122,16 +121,26 @@ class vtsd(object):
 
         logging.info("Chechink auth...")
         # response = requests.post(vAAA_URL, json=msg)
-        response = self.__device_is_authenticated(int(jdata[u"message"]), str(jdata[u"signature"]))
-        if response == 200:
+        response = self.__device_is_authenticated((jdata[u"message"]), (jdata[u"signature"]))
 
+        if response == 200:
             logging.info("Authentication {}SUCCEED{}".format(frm.OKGREEN, frm.ENDC))
-            reply = self.__generate_bs_reg_reply(src, dst, ANSWER.SUCCESS)
+            logging.info("notify vSON!\n");
+
+            vSONresponse = self.__notify_vSON(src, jdata)
+            if vSONresponse.status_code == 200:
+
+                logging.info("vSON Registration {}SUCCEED{}".format(frm.OKGREEN, frm.ENDC))
+                return self.__generate_bs_reg_reply(src, dst, ANSWER.SUCCESS)
+
+            else:
+                logging.info(repr(vSONresponse.status_code) + ' ' + repr(vSONresponse.content))
+                logging.info("device already registered!\n")
+                return None
+
         else:
             reply = self.__generate_bs_reg_reply(src, dst, ANSWER.FAIL)
-        return reply
-
-
+            return reply
 
 
     def __process_TSD(self, src, dst, sock, pl_size):
@@ -181,9 +190,9 @@ class vtsd(object):
                 else:
                     response = self.__generate_unsupported_msgtype_err(src, dst)
 
-                client.send(response)
-                logging.debug("Replying to " + str(address) + " with " + "{}".format(" ".join("{:02x}".format(ord(c)) for c in response)))
-
+                if response:
+                    client.sendall(response)
+                    logging.debug("Replying to " + str(address) + " with " + "{}".format(" ".join("{:02x}".format(ord(c)) for c in response)))
 
 
             except NSOException as x:
@@ -208,7 +217,7 @@ class vtsd(object):
 
         while True:
             response = raw_input(
-                "Incoming registration request from {:X}, cred: {}. Do you want to accept it? (yes/no) ".format(uuid,
+                "Incoming registration request from {}, cred: {}. Do you want to accept it? (yes/no) ".format(uuid,
                                                                                                                credentials))
             if (response == "yes") or (response == "no"):
                 break
@@ -222,12 +231,8 @@ class vtsd(object):
 
 if __name__ == "__main__":
 
-    parser = OptionParser()
-    parser.add_option("-p", "--port", dest="port_num", help="select on wich port to open the listener, default = 2311",
-                      metavar="<port>")
-    (options, args) = parser.parse_args()
 
-    port_num = options.port_num
+    port_num = args.port
 
     if not port_num:
         port_num = 2311

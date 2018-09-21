@@ -11,7 +11,6 @@ class Node:
     def __init__(self, _ID=0, _sign="", _description=None, _registered=False, _interfaces = {}, _o_links = {}, _battery=None):
         logging.debug('creating new node {}'.format(_ID))
         try:
-            assert isinstance(_ID, int)
             self.ID = _ID
             self.reg = _registered
             self.sign = _sign
@@ -258,9 +257,9 @@ class TopologyGraph:
         return STATUS.NODE_NOT_REGISTERED
 
     def put_node_info(self, ID, **kwargs):
-        print ID, "; ID in topology:"
+        print hex(ID), " ID in topology:"
         for id in self.nodes:
-            print id, ' '
+            print hex(id), ' '
         if ID in self.nodes:
             for key in kwargs:
                 if key == 'battery':
@@ -284,8 +283,6 @@ class TopologyGraph:
 
         logging.critical("Trying to update node not registered {:X}".format(ID))
         return STATUS.NODE_NOT_FOUND, None
-
-
 
     def __update_netgraph(self):
         with open(NETGRAPH_PATH, 'w') as outfile:
