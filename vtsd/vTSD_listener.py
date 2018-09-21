@@ -6,6 +6,8 @@ import logging
 
 sys.path.append(os.path.abspath(os.path.join("..")))
 
+
+from common import *
 from optparse import OptionParser
 
 
@@ -43,7 +45,7 @@ class vtsd(object):
 
     def __generate_unsupported_msgtype_err(self, src, dst):
         # 8B src, 8B dst, 2B proto, 2B len, 1B MSG_TYPE, 1B ANSWER
-        msg = struct.pack("!QQHHB", src, dst, PROTO.TSD.value, NSO_HDR_LEN + 2, MSGTYPE.UNSUPPORTED_MSGTYPE_ERROR.value)
+        msg = struct.pack("!QQHHB", src, dst, PROTO.TSD.value, NSO_HDR_LEN + 1, MSGTYPE.UNSUPPORTED_MSGTYPE_ERROR.value)
         return msg
 
     def __receive_nso_hdr(self, sock):
@@ -165,4 +167,4 @@ if __name__ == "__main__":
             print "vTSD_listener:main: Invalid port number. Abort..."
             exit(1)
 
-    Listener('', port_num).listen()
+    vtsd('', port_num).listen()
