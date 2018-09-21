@@ -1,18 +1,15 @@
 import socket
 import threading
-import datetime
 import sys, os
 import json, struct
 import logging
-import requests
 
 sys.path.append(os.path.abspath(os.path.join("..")))
-from common.Def import *
 
 from optparse import OptionParser
 
 
-class Listener(object):
+class vtsd(object):
 
     def __init__(self, host, port):
         ### open the request listener n specified port
@@ -37,6 +34,11 @@ class Listener(object):
     def __generate_device_reg_reply(self, dst, src, answer):
         # 8B src, 8B dst, 2B proto, 2B len, 1B MSG_TYPE, 1B ANSWER
         msg = struct.pack("!QQHHBB", src, dst, PROTO.TSD.value, NSO_HDR_LEN + 2, MSGTYPE.DEV_REG_REPLY.value, answer)
+        return msg
+
+    def __generate_bs_reg_reply(self, dst, src, answer):
+        # 8B src, 8B dst, 2B proto, 2B len, 1B MSG_TYPE, 1B ANSWER
+        msg = struct.pack("!QQHHBB", src, dst, PROTO.TSD.value, NSO_HDR_LEN + 2, MSGTYPE.BS_REG_REPLY.value, answer)
         return msg
 
     def __generate_unsupported_msgtype_err(self, src, dst):
@@ -80,11 +82,10 @@ class Listener(object):
         response = self.__device_is_authenticated(jdata[u"message"], jdata[u"signature"])
         if response == 200:
             logging.info("Authentication {}SUCCEED{}".format(frm.OKGREEN, frm.ENDC))
-            reply = self.__generate_device_reg_reply(src, dst, ANSWER.SUCCESS.value)
+            reply = self.__generate_bs_reg_reply(src, dst, ANSWER.SUCCESS.value)
         else:
-            reply = self.__generate_device_reg_reply(src, dst, ANSWER.FAIL.value)
+            reply = self.__generate_bs_reg_reply(src, dst, ANSWER.FAIL.value)
             raise Exception("Unregistered Base Station")
-
         return reply
 
     def __process_TSD(self, src, dst, sock, pl_size):
