@@ -4,10 +4,14 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <stdint.h>
+#include <wiringPi.h>
+#include <signal.h>
 
 #define USAGE_PER_SEC 6.6916087962962962962962962962963e-4
 #define REPORT_RATE_S 3
 #define APP_PROTO 0x0800
+
+#define LED_PIN 28
 
 typedef struct {
     nso_addr_t dev_id;
@@ -75,7 +79,14 @@ static void* __app_rx(void *arg){
 }
 
 static void turn_on_led() {
+    wiringPiSetup();
+    pinMode(LED_PIN, OUTPUT);
+    digitalWrite(LED_PIN, HIGH);
+}
 
+static void turn_off_led(int signo) {
+    digitalWrite(LED_PIN, LOW);
+    exit(-1);
 }
 
 static void __app_main() {
@@ -94,6 +105,9 @@ int main(int argc, char **argv){
         return -1;
     }
     nso_layer_run(argv[1]);
+    signal(SIGQUIT, turn_off_led);
+    signal(SIGINT, turn_off_led);
+    signal(SIGPIPE, turn_off_led);
     __app_main();
     return 0;
 }

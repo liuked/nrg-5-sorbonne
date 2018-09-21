@@ -86,9 +86,8 @@ POST_INSTALL = :
 NORMAL_UNINSTALL = :
 PRE_UNINSTALL = :
 POST_UNINSTALL = :
-noinst_PROGRAMS = test_nso$(EXEEXT) test_arp$(EXEEXT) \
-	test_nbr$(EXEEXT) test_fwd$(EXEEXT) test_wifi$(EXEEXT)
-subdir = src/test
+noinst_PROGRAMS = bs_app$(EXEEXT)
+subdir = src/bs_app
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
@@ -99,21 +98,9 @@ CONFIG_HEADER = $(top_builddir)/config.h
 CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 PROGRAMS = $(noinst_PROGRAMS)
-am_test_arp_OBJECTS = test_arp.$(OBJEXT)
-test_arp_OBJECTS = $(am_test_arp_OBJECTS)
-test_arp_DEPENDENCIES = $(top_srcdir)/src/nso_lib/libnso.a
-am_test_fwd_OBJECTS = test_fwding.$(OBJEXT)
-test_fwd_OBJECTS = $(am_test_fwd_OBJECTS)
-test_fwd_DEPENDENCIES = $(top_srcdir)/src/nso_lib/libnso.a
-am_test_nbr_OBJECTS = test_nbr.$(OBJEXT)
-test_nbr_OBJECTS = $(am_test_nbr_OBJECTS)
-test_nbr_DEPENDENCIES = $(top_srcdir)/src/nso_lib/libnso.a
-am_test_nso_OBJECTS = test_nso.$(OBJEXT)
-test_nso_OBJECTS = $(am_test_nso_OBJECTS)
-test_nso_DEPENDENCIES = $(top_srcdir)/src/nso_lib/libnso.a
-am_test_wifi_OBJECTS = test_wifi.$(OBJEXT)
-test_wifi_OBJECTS = $(am_test_wifi_OBJECTS)
-test_wifi_DEPENDENCIES = $(top_srcdir)/src/nso_lib/libnso.a
+am_bs_app_OBJECTS = bs_app.$(OBJEXT)
+bs_app_OBJECTS = $(am_bs_app_OBJECTS)
+bs_app_DEPENDENCIES = $(top_srcdir)/src/bs_lib/libbs.a
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
 am__v_P_0 = false
@@ -142,10 +129,8 @@ AM_V_CCLD = $(am__v_CCLD_@AM_V@)
 am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
-SOURCES = $(test_arp_SOURCES) $(test_fwd_SOURCES) $(test_nbr_SOURCES) \
-	$(test_nso_SOURCES) $(test_wifi_SOURCES)
-DIST_SOURCES = $(test_arp_SOURCES) $(test_fwd_SOURCES) \
-	$(test_nbr_SOURCES) $(test_nso_SOURCES) $(test_wifi_SOURCES)
+SOURCES = $(bs_app_SOURCES)
+DIST_SOURCES = $(bs_app_SOURCES)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -261,17 +246,9 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-test_nso_SOURCES = test_nso.c
-test_arp_SOURCES = test_arp.c
-test_nbr_SOURCES = test_nbr.c
-test_fwd_SOURCES = test_fwding.c
-test_wifi_SOURCES = test_wifi.c
-test_nso_LDADD = $(top_srcdir)/src/nso_lib/libnso.a
-test_arp_LDADD = $(top_srcdir)/src/nso_lib/libnso.a
-test_nbr_LDADD = $(top_srcdir)/src/nso_lib/libnso.a
-test_fwd_LDADD = $(top_srcdir)/src/nso_lib/libnso.a
-test_wifi_LDADD = $(top_srcdir)/src/nso_lib/libnso.a
-INCLUDES = -I$(top_srcdir)/src/nso_lib/include
+bs_app_SOURCES = bs_app.c
+bs_app_LDADD = $(top_srcdir)/src/bs_lib/libbs.a
+INCLUDES = -I$(top_srcdir)/src/bs_lib/include
 all: all-am
 
 .SUFFIXES:
@@ -285,9 +262,9 @@ $(srcdir)/Makefile.in:  $(srcdir)/Makefile.am  $(am__configure_deps)
 	      exit 1;; \
 	  esac; \
 	done; \
-	echo ' cd $(top_srcdir) && $(AUTOMAKE) --gnu src/test/Makefile'; \
+	echo ' cd $(top_srcdir) && $(AUTOMAKE) --gnu src/bs_app/Makefile'; \
 	$(am__cd) $(top_srcdir) && \
-	  $(AUTOMAKE) --gnu src/test/Makefile
+	  $(AUTOMAKE) --gnu src/bs_app/Makefile
 Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	@case '$?' in \
 	  *config.status*) \
@@ -309,25 +286,9 @@ $(am__aclocal_m4_deps):
 clean-noinstPROGRAMS:
 	-test -z "$(noinst_PROGRAMS)" || rm -f $(noinst_PROGRAMS)
 
-test_arp$(EXEEXT): $(test_arp_OBJECTS) $(test_arp_DEPENDENCIES) $(EXTRA_test_arp_DEPENDENCIES) 
-	@rm -f test_arp$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(test_arp_OBJECTS) $(test_arp_LDADD) $(LIBS)
-
-test_fwd$(EXEEXT): $(test_fwd_OBJECTS) $(test_fwd_DEPENDENCIES) $(EXTRA_test_fwd_DEPENDENCIES) 
-	@rm -f test_fwd$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(test_fwd_OBJECTS) $(test_fwd_LDADD) $(LIBS)
-
-test_nbr$(EXEEXT): $(test_nbr_OBJECTS) $(test_nbr_DEPENDENCIES) $(EXTRA_test_nbr_DEPENDENCIES) 
-	@rm -f test_nbr$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(test_nbr_OBJECTS) $(test_nbr_LDADD) $(LIBS)
-
-test_nso$(EXEEXT): $(test_nso_OBJECTS) $(test_nso_DEPENDENCIES) $(EXTRA_test_nso_DEPENDENCIES) 
-	@rm -f test_nso$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(test_nso_OBJECTS) $(test_nso_LDADD) $(LIBS)
-
-test_wifi$(EXEEXT): $(test_wifi_OBJECTS) $(test_wifi_DEPENDENCIES) $(EXTRA_test_wifi_DEPENDENCIES) 
-	@rm -f test_wifi$(EXEEXT)
-	$(AM_V_CCLD)$(LINK) $(test_wifi_OBJECTS) $(test_wifi_LDADD) $(LIBS)
+bs_app$(EXEEXT): $(bs_app_OBJECTS) $(bs_app_DEPENDENCIES) $(EXTRA_bs_app_DEPENDENCIES) 
+	@rm -f bs_app$(EXEEXT)
+	$(AM_V_CCLD)$(LINK) $(bs_app_OBJECTS) $(bs_app_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -335,11 +296,7 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_arp.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_fwding.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_nbr.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_nso.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/test_wifi.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/bs_app.Po@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<

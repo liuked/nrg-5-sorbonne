@@ -97,5 +97,6 @@ int nso_layer_fwd(packet_t *pkt);
 int nso_layer_get_mtu();
 int nso_layer_recv(uint8_t *buf, int size, device_id_t *src, device_id_t *dst, uint16_t *proto);
 int nso_layer_send(uint8_t *buf, int size, device_id_t *dst, uint16_t proto);
-
+int nso_layer_is_connected();
+int nso_layer_get_device_id(device_id_t *dev_id);
 #endif

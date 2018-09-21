@@ -12,10 +12,11 @@ AC_PROG_CC
 
 # Checks for libraries.
 AC_CHECK_LIB([pthread], [pthread_create])
+AC_CHECK_LIB([wiringPi], [digitalWrite])
 AC_PROG_RANLIB
 
 # Checks for header files.
-AC_CHECK_HEADERS([arpa/inet.h netinet/in.h stdint.h stdlib.h string.h sys/ioctl.h sys/socket.h sys/time.h unistd.h])
+AC_CHECK_HEADERS([arpa/inet.h netinet/in.h stdint.h stdlib.h string.h sys/ioctl.h sys/socket.h sys/time.h unistd.h signal.h wiringPi.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_INLINE
@@ -30,4 +31,5 @@ AC_CHECK_FUNCS([gettimeofday memset select socket])
 
 AC_OUTPUT([src/bs_lib/Makefile
            src/test/Makefile
+           src/bs_app/Makefile
            Makefile])

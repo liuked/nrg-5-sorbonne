@@ -496,3 +496,14 @@ int nso_layer_send(uint8_t *buf, int size, device_id_t *dst, uint16_t proto) {
 
 }
 
+int nso_layer_is_connected() {
+    pthread_mutex_lock(&nso_layer.state_lock);
+    int ret = nso_layer.dev_state == NRG5_CONNECTED;
+    pthread_mutex_unlock(&nso_layer.state_lock);
+    return ret;
+}
+
+int nso_layer_get_device_id(device_id_t *dev_id) {
+    assign_device_id(dev_id, (uint8_t*)nso_layer.dev_id);
+    return 0;
+}
