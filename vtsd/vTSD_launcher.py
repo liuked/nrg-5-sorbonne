@@ -4,8 +4,6 @@ import sys, os
 import json, struct
 import logging
 import requests
-
-logging.basicConfig(level=logging.DEBUG)
 sys.path.append(os.path.abspath(os.path.join("..")))
 from common.Def import *
 
@@ -67,12 +65,14 @@ class vtsd(object):
         return msg
 
 
-    def __notify_vSON(self, ID, jdata):
+    def __notify_vSON(self, ID, jdata, bs=False):
 
+        assert isinstance(bs, bool)
         url = 'http://{}:{}/'.format(args.vson_addr, args.vson_port)
         newID = hex(ID)
         payload = {
             'ID': newID,
+            'bs': bs,
             'description': jdata["message"],
             'signature': jdata["signature"],
             'registered': True
@@ -105,7 +105,6 @@ class vtsd(object):
 
             else:
                 logging.info(repr(vSONresponse.status_code) + ' ' + repr(vSONresponse.content))
-                logging.info("device already registered!\n")
                 return None
 
         logging.info("Authentication {}FAILED{}".format(frm.FAIL, frm.ENDC))
@@ -121,13 +120,13 @@ class vtsd(object):
 
         logging.info("Chechink auth...")
         # response = requests.post(vAAA_URL, json=msg)
-        response = self.__device_is_authenticated((jdata[u"message"]), (jdata[u"signature"]))
+        response = self.__device_is_authenticated((jdata[u"message"]), (jdata[u"signature"]), bs=True)
 
         if response == 200:
             logging.info("Authentication {}SUCCEED{}".format(frm.OKGREEN, frm.ENDC))
-            logging.info("notify vSON!\n");
+            logging.info("notify vSON!\n")
 
-            vSONresponse = self.__notify_vSON(src, jdata)
+            vSONresponse = self.__notify_vSON(src, jdata, bs=True)
             if vSONresponse.status_code == 200:
 
                 logging.info("vSON Registration {}SUCCEED{}".format(frm.OKGREEN, frm.ENDC))
@@ -170,6 +169,8 @@ class vtsd(object):
 
             return (src, dst, proto, length, nso_hdr)
 
+        else:
+            raise NSOException(STATUS.SOUTHBOUND_NOT_NSO, 'received a non NSO packet')
 
     def __listen_to_BS(self, client, address):
 
@@ -190,39 +191,36 @@ class vtsd(object):
                 else:
                     response = self.__generate_unsupported_msgtype_err(src, dst)
 
-                if response:
-                    client.sendall(response)
-                    logging.debug("Replying to " + str(address) + " with " + "{}".format(" ".join("{:02x}".format(ord(c)) for c in response)))
+                if not response:
+                   response = ('none')
 
+                client.sendall(response)
+                logging.debug("Replying to " + str(address) + " with " + "{}".format(" ".join("{:02x}".format(ord(c)) for c in response)))
 
             except NSOException as x:
                 if x.code == STATUS.SOUTHBOUND_NOT_NSO:
-                    logging.warning('Received not NSO packet from {}: {}'.format(address, hdr_str))
+                    logging.warning('Received not NSO packet from {}'.format(address))
+                    logging.error(x.msg)
+                    client.send('error')
                     pass
+
                 if x.code == STATUS.UNRECOGNIZED_BS:
                     logging.warning('Base Station not Authenticated, closing listener...')
                     return
 
 
 
-            # except Exception:
-            #     logging.error("vTSD_listener: error " + str(sys.exc_info()))
-            #     client.close()
-            #     raise
-
-
-
-    def __device_is_authenticated(self, uuid, credentials):  # FIXME : connect to vAAA_simulation service
+    def __device_is_authenticated(self, uuid, credentials, bs=False):  # FIXME : connect to vAAA_simulation service
         response = False
 
         while True:
             response = raw_input(
-                "Incoming registration request from {}, cred: {}. Do you want to accept it? (yes/no) ".format(uuid,
+                "Incoming registration request from {}, cred: {}. Do you want to accept it? (y/n) ".format('BASE STATION' if bs else '', uuid,
                                                                                                                credentials))
-            if (response == "yes") or (response == "no"):
+            if (response == "y") or (response == "n"):
                 break
 
-        if response == "yes":
+        if response == "y":
             return 200
         else:
             return 500
@@ -231,7 +229,7 @@ class vtsd(object):
 
 if __name__ == "__main__":
 
-
+    logging.basicConfig(level=logging.DEBUG)
     port_num = args.port
 
     if not port_num:

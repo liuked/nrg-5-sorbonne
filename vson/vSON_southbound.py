@@ -4,6 +4,7 @@ from vSON_graph import *
 import socket
 import threading
 import struct
+import time
 
 
 class vson(object):
@@ -15,6 +16,7 @@ class vson(object):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.bind((self.host, self.port))
+        #self.sock.settimeout(0.001)  # allow monitor to lock by pausing in between two reading
 
         logging.info("Listener is started on port " + str(port))
 
@@ -24,14 +26,19 @@ class vson(object):
     def listen(self):
         self.sock.listen(5)
         while True:
-            client, address = self.sock.accept()
-            logging.info("Receive connection from " + str(address))
 
-            t = threading.Thread(target=self.__listen_to_bs, args=(client, address))
-            t.setDaemon(True)
-            t.start()
+            try:
+                client, address = self.sock.accept()
+                logging.info("Receive connection from " + str(address))
 
-            logging.debug("Opening a threaded socket for client: " + str(address))
+                t = threading.Thread(target=self.__listen_to_bs, args=(client, address))
+                t.setDaemon(True)
+                t.start()
+
+                logging.debug("Opening a threaded socket for client: " + str(address))
+            except:
+                pass
+
 
 
     def __generate_unsupported_msgtype_err(self, src, dst):
@@ -102,14 +109,16 @@ class vson(object):
 
         msg_typ, msg = struct.unpack("!B{}s".format(pl_size-1), payload)
         logging.info("Received message type [{:02X}]".format(msg_typ))
+        lock.acquire()
+        try:
+            if msg_typ == SONMSG.TOPO_REPO:
+                reply = self.__process_topo_repo(src, dst, msg)
+            else:
+                reply = self.__generate_unsupported_msgtype_err(src, dst)
 
-        if msg_typ == SONMSG.TOPO_REPO:
-            reply = self.__process_topo_repo(src, dst, msg)
-        else:
-            reply = self.__generate_unsupported_msgtype_err(src, dst)
-
-        return reply
-
+            return reply
+        finally:
+            lock.release()
 
 
     def __receive_nso_hdr(self, sock):
@@ -135,9 +144,8 @@ class vson(object):
 
         while True:
 
-
             try:
-
+                logging.debug('CONNECTION: receiving...')
                 src, dst, proto, length, hdr_str = self.__receive_nso_hdr(client)
 
                 if src and dst and length and hdr_str:
@@ -150,22 +158,16 @@ class vson(object):
                         response = self.__generate_unsupported_msgtype_err(src, dst)
 
 
-                    if response:
-                        client.send(response)
-                        logging.debug("Replying to " + str(address) + " with " + "{}".format(" ".join("{:02X}".format(ord(c)) for c in response)))
+                    if not response:
+                        response = "none"
+
+                    client.send(response)
+                    logging.debug("Replying to " + str(address) + " with " + "{}".format(" ".join("{:02X}".format(ord(c)) for c in response)))
 
             except NSOException as x:
                 logging.error(x.msg)
-                client.send(x.msg)
+                client.send('error')
                 pass
-
-
-            # # raise Exception, ('Client Disconnected')
-            # except Exception:
-            #     print "vSON_listener: error ", sys.exc_info()
-            #     client.close()
-            #     raise
-
 
 
     def __device_is_authenticated(self, uuid, credentials):
