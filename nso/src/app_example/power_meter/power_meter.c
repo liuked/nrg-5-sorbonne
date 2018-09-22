@@ -12,6 +12,7 @@
 #define APP_PROTO 0x0800
 
 #define LED_PIN 28
+#define PM_DATA_FILE "pm.data"
 
 typedef struct {
     nso_addr_t dev_id;
@@ -31,7 +32,13 @@ static int fill_data_buf(uint8_t *buf, nso_addr_t *dev_id, double usage) {
 static void init_power_meter(power_meter_t *pw) {
     nso_get_device_id(&pw->dev_id);
     pw->stop_charge = 0;
-    pw->usage = 0;
+    FILE *fp = fopen(PM_DATA_FILE, "r");
+    if (fp) {
+        fscanf(fp, "%lf", &pw->usage);
+        fclose(fp);
+    } else {
+        pw->usage = 0;
+    }
     pthread_mutex_init(&pw->lock, NULL);
 }
 
@@ -101,6 +108,9 @@ static void turn_on_led() {
 }
 
 static void turn_off_led(int signo) {
+    FILE *fp = fopen(PM_DATA_FILE, "w");
+    fprintf(fp, "%lf", power_meter.usage);
+    fclose(fp);
     digitalWrite(LED_PIN, LOW);
     exit(-1);
 }
