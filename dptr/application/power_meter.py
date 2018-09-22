@@ -37,7 +37,7 @@ class service(socketserver.BaseRequestHandler):
             return dev_id, usage, addr, port
 
         def __rx_data_from_webserver(appsock, dev_id):
-            url = "{}:{}/recv?id={}".format(WEB_ADDR, WEB_PORT, hex(dev_id))
+            url = "http://{}:{}/recv?id={}".format(WEB_ADDR, WEB_PORT, hex(dev_id))
             with request.urlopen(url) as f:
                 response = f.read().decode("utf-8")
                 if response == "start":
@@ -51,12 +51,8 @@ class service(socketserver.BaseRequestHandler):
             while True:
                 try:
                     __rx_data_from_webserver(appsock, dev_id)
-                except socket.timeout as e:
-                    logging.debug("recv from webserver timeout!")
-                    logging.debug(e)
                 except:
-                    logging.debug("error")
-                    break
+                    logging.debug("recv from webserver timeout!")
 
         def __tx_data_to_webserver(appsock):
             data = appsock.recv(16) #8B devid and 8B usage
@@ -67,7 +63,7 @@ class service(socketserver.BaseRequestHandler):
                 dev_id_map[dev_id] = True
                 threading.Thread(target = __rx_thr_main, args=(appsock, dev_id)).start()
 
-            url = "{}:{}/send?id={}&addr={}:{}&data={:.4f}".format(WEB_ADDR, WEB_PORT, hex(dev_id), addr, port, usage)
+            url = "http://{}:{}/send?id={}&addr={}:{}&data={:.4f}".format(WEB_ADDR, WEB_PORT, hex(dev_id), addr, port, usage)
             with request.urlopen(url) as f:
                 logging.debug("report date to server: {}".format(url))
 
