@@ -8,15 +8,17 @@
 #include <signal.h>
 
 #define USAGE_PER_SEC 6.6916087962962962962962962962963e-4
-#define REPORT_RATE_S 3
+#define REPORT_RATE_S 1
 #define APP_PROTO 0x0800
 
 #define LED_PIN 28
+#define PM_DATA_FILE "pm.data"
 
 typedef struct {
     nso_addr_t dev_id;
     uint8_t stop_charge;
     double usage;
+    pthread_mutex_t lock;
 }power_meter_t;
 
 power_meter_t power_meter;
@@ -30,7 +32,27 @@ static int fill_data_buf(uint8_t *buf, nso_addr_t *dev_id, double usage) {
 static void init_power_meter(power_meter_t *pw) {
     nso_get_device_id(&pw->dev_id);
     pw->stop_charge = 0;
-    pw->usage = 0;
+    FILE *fp = fopen(PM_DATA_FILE, "r");
+    if (fp) {
+        fscanf(fp, "%lf", &pw->usage);
+        fclose(fp);
+    } else {
+        pw->usage = 0;
+    }
+    pthread_mutex_init(&pw->lock, NULL);
+}
+
+static uint8_t is_stop() {
+    pthread_mutex_lock(&power_meter.lock);
+    uint8_t ret = power_meter.stop_charge;
+    pthread_mutex_unlock(&power_meter.lock);
+    return ret;
+}
+
+static void set_stop(uint8_t state) {
+    pthread_mutex_lock(&power_meter.lock);
+    power_meter.stop_charge = state;
+    pthread_mutex_unlock(&power_meter.lock);
 }
 
 static void* __app_tx(void *arg){
@@ -38,7 +60,7 @@ static void* __app_tx(void *arg){
     int size;
     uint16_t proto;
     while(1) {
-        if (!power_meter.stop_charge) {
+        if (!is_stop()) {
             size = fill_data_buf(buf, &power_meter.dev_id, power_meter.usage);
             int send_bytes = nso_send(buf, size, NULL, APP_PROTO);
             printf("send %d bytes! [%llx %lf]\n", send_bytes, *(uint64_t*)&power_meter.dev_id, power_meter.usage);
@@ -55,12 +77,13 @@ static void* __app_tx(void *arg){
 static void process_cmd(uint8_t *buf, int size, power_meter_t *pw) {
     switch(*buf) {
         case CMD_STOP_CHARGE:
-            pw->stop_charge = 1;
+            set_stop(1);
             printf("stop charge!\n");
             break;
         case CMD_START_CHARGE:
-            pw->stop_charge = 0;
+            set_stop(0);
             printf("start charge!\n");
+            break;
         default:
             printf("unknown cmd!\n");
             break;
@@ -72,7 +95,7 @@ static void* __app_rx(void *arg){
     uint16_t proto;
     while(1) {
         int recv_bytes = nso_receive(rbuf, 1024, NULL, NULL, &proto);
-        printf("recv %d bytes!\n proto %d\n", recv_bytes, proto);
+        printf("recv %d bytes! proto %d\n", recv_bytes, proto);
         process_cmd(rbuf, recv_bytes, &power_meter);
     }
     return NULL;
@@ -85,6 +108,9 @@ static void turn_on_led() {
 }
 
 static void turn_off_led(int signo) {
+    FILE *fp = fopen(PM_DATA_FILE, "w");
+    fprintf(fp, "%lf", power_meter.usage);
+    fclose(fp);
     digitalWrite(LED_PIN, LOW);
     exit(-1);
 }

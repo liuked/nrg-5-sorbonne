@@ -97,7 +97,7 @@ class service(socketserver.BaseRequestHandler):
                     logging.debug("socket recv from server error")
                     break
                 nso_data = __pack_nso_packet(nso_info, app_data)
-                logging.debug("sending message back to device: {}".format(nso_data))
+                logging.debug("forward message to devices: {}".format(nso_data))
                 self.request.sendall(nso_data)
 
         nso2tcp_map = _Nso2TcpMap()
@@ -106,7 +106,7 @@ class service(socketserver.BaseRequestHandler):
         while True:
             try:
                 src_id, gw_id, proto, data = self.__recv_nso_msg()
-                logging.debug("received message: {} {} {} {}".format(src_id, gw_id, proto, data))
+                logging.debug("receive message from devices: src_id {}, dst_id {}, proto {}, data {}".format(src_id, gw_id, hex(proto), data))
 
                 entry = nso2tcp_map.lookup_from_src_id(src_id)
                 if not entry:
