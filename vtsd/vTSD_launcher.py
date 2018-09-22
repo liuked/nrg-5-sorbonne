@@ -84,7 +84,12 @@ class vtsd(object):
     def __process_dev_reg(self, src, dst, req):
         logging.debug("Processing DEV_REG message {}".format(req))
 
-        jdata = json.loads(req)
+
+        try:
+            jdata = json.loads(req)
+        except:
+            logging.warning("is not json data")
+            return None
 
         #logging.debug(jdata)
 
@@ -200,8 +205,8 @@ class vtsd(object):
 
             except NSOException as x:
                 if x.code == STATUS.SOUTHBOUND_NOT_NSO:
-                    logging.warning('Received not NSO packet from {}'.format(address))
-                    logging.error(x.msg)
+                    # logging.warning('Received not NSO packet from {}'.format(address))
+                    # logging.error(x.msg)
                     pass
 
                 if x.code == STATUS.UNRECOGNIZED_BS:
@@ -212,7 +217,8 @@ class vtsd(object):
 
     def __device_is_authenticated(self, uuid, credentials, bs=False):  # FIXME : connect to vAAA_simulation service
         #FIXME: @WARNING THIS IS JUST FOR TEST, BEACAUSE WE DONT HAVE THE FUCKING VAAA
-        #return 200
+        return 200
+
         response = False
 
         while True:
