@@ -6,6 +6,7 @@ from common.Def import *
 import random
 import threading
 import time
+import struct
 
 from common.interop import Dptr
 
