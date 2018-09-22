@@ -158,11 +158,12 @@ class vson(object):
                         response = self.__generate_unsupported_msgtype_err(src, dst)
 
 
-                    if not response:
-                        response = "none"
+                    #if not response:
+                    #    response = "none"
 
-                    client.send(response)
-                    logging.debug("Replying to " + str(address) + " with " + "{}".format(" ".join("{:02X}".format(ord(c)) for c in response)))
+                    if response:
+                        client.send(response)
+                        logging.debug("Replying to " + str(address) + " with " + "{}".format(" ".join("{:02X}".format(ord(c)) for c in response)))
 
             except NSOException as x:
                 logging.error(x.msg)

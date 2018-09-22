@@ -128,8 +128,11 @@ class Node:
 
         if type == 'netgraph':
 
+            tmp_id = struct.pack("!Q", self.ID)
+            tmp_id = struct.unpack("=Q", tmp_id)[0]
+
             r = {
-                'id': hex(self.ID),
+                'id': hex(tmp_id),
                 'label': self.desc,
                 'properties': {
                     'battery': self.batt,
@@ -206,9 +209,13 @@ class Link:
             }
 
         if type == 'netgraph':
+            bg_id = struct.pack("!Q", self.begin)
+            bg_id = struct.unpack("=Q", bg_id)[0]
+            end_id = struct.pack("!Q", self.end)
+            end_id = struct.unpack("=Q", end_id)[0]
             r = {
-                'source': hex(self.begin),
-                'target': hex(self.end),
+                'source': hex(bg_id),
+                'target': hex(end_id),
                 'cost': self.get_cost(),
 
                 'properties': {
@@ -238,7 +245,7 @@ class TopologyGraph:
         self.__changed = False
         self.metric = "shortest path"
         self.ntup = 1
-        self.alpha = 20
+        self.alpha = 5
 
         self.__njg = self.tojson('netgraph')
         self.__update_netgraph()
@@ -274,7 +281,6 @@ class TopologyGraph:
                             self.__enforce_link(n)
                         except NSOException as exc:
                             logging.error(exc.msg)
-                            raise
 
             self.__changed = True
             self.__update_netgraph()

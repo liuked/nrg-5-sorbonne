@@ -42,7 +42,7 @@ class vtsd(object):
             t = threading.Thread(target=self.__listen_to_BS, args=(client, address))
             t.setDaemon(True)
             t.start()
-            logging.debug("Opening a threaded socket for client: " + str(address))
+            #logging.debug("Opening a threaded socket for client: " + str(address))
 
 
 
@@ -82,13 +82,13 @@ class vtsd(object):
 
 
     def __process_dev_reg(self, src, dst, req):
-        logging.info("Processing DEV_REG message {}".format(req))
+        logging.debug("Processing DEV_REG message {}".format(req))
 
         jdata = json.loads(req)
 
-        logging.info(jdata)
+        #logging.debug(jdata)
 
-        logging.info("Chechink auth...")
+        #logging.debug("Chechink auth...")
         # response = requests.post(vAAA_URL, json=msg)
 
         response = self.__device_is_authenticated((jdata["message"]), (jdata["signature"]))
@@ -104,7 +104,7 @@ class vtsd(object):
                 return self.__generate_device_reg_reply(src, dst, ANSWER.SUCCESS)
 
             else:
-                logging.info(repr(vSONresponse.status_code) + ' ' + repr(vSONresponse.content))
+                logging.error(repr(vSONresponse.status_code) + ' ' + repr(vSONresponse.content))
                 return None
 
         logging.info("Authentication {}FAILED{}".format(frm.FAIL, frm.ENDC))
@@ -114,11 +114,11 @@ class vtsd(object):
 
 
     def __process_bs_reg(self, src, dst, msg):
-        logging.info("Received BS_REG message: {}".format(msg))
+        logging.debug("Received BS_REG message: {}".format(msg))
 
         jdata = json.loads(msg)
 
-        logging.info("Chechink auth...")
+        #logging.debug("Chechink auth...")
         # response = requests.post(vAAA_URL, json=msg)
         response = self.__device_is_authenticated((jdata[u"message"]), (jdata[u"signature"]), bs=True)
 
@@ -133,8 +133,8 @@ class vtsd(object):
                 return self.__generate_bs_reg_reply(src, dst, ANSWER.SUCCESS)
 
             else:
-                logging.info(repr(vSONresponse.status_code) + ' ' + repr(vSONresponse.content))
-                logging.info("device already registered!\n")
+                logging.error(repr(vSONresponse.status_code) + ' ' + repr(vSONresponse.content))
+                logging.error("device already registered!\n")
                 return None
 
         else:
@@ -144,10 +144,10 @@ class vtsd(object):
 
     def __process_TSD(self, src, dst, sock, pl_size):
         payload = sock.recv(pl_size)
-        logging.info("Processing TSD message: {}".format(" ".join("{:02x}".format(ord(c)) for c in payload)))
+        #logging.debug("Processing TSD message: {}".format(" ".join("{:02x}".format(ord(c)) for c in payload)))
 
         msg_typ, msg = struct.unpack("!B{}s".format(pl_size-1), payload)
-        logging.info("Received message type [{:02x}]".format(msg_typ))
+        logging.debug("Received message type [{:02x}]".format(msg_typ))
 
         if msg_typ == TSDMSG.DEV_REG:
             reply = self.__process_dev_reg(src, dst, msg)
@@ -181,27 +181,27 @@ class vtsd(object):
 
                 src, dst, proto, length, hdr_str = self.__receive_nso_hdr(client)
 
-                logging.info("Received packet protocol [{:02x}], payload size = {}".format(proto, length - NSO_HDR_LEN))
+                logging.debug("Received packet protocol [{:02x}], payload size = {}".format(proto, length - NSO_HDR_LEN))
                 # FIXME: extend message discriminator
                 if proto == PROTO.TSD:
                     response = self.__process_TSD(src, dst, client, length-NSO_HDR_LEN if length else 0)
                 elif proto == PROTO.SU2IP:
-                    logging.info("{}Received Data Packet: {}".format(frm.WARNING, frm.ENDC))
+                    logging.debug("{}Received Data Packet: {}".format(frm.WARNING, frm.ENDC))
                     response = ""
                 else:
                     response = self.__generate_unsupported_msgtype_err(src, dst)
 
-                if not response:
-                   response = ('none')
+                #if not response:
+                #   response = ('none')
 
-                client.sendall(response)
-                logging.debug("Replying to " + str(address) + " with " + "{}".format(" ".join("{:02x}".format(ord(c)) for c in response)))
+                if response:
+                    client.sendall(response)
+                    logging.debug("Replying to " + str(address) + " with " + "{}".format(" ".join("{:02x}".format(ord(c)) for c in response)))
 
             except NSOException as x:
                 if x.code == STATUS.SOUTHBOUND_NOT_NSO:
                     logging.warning('Received not NSO packet from {}'.format(address))
                     logging.error(x.msg)
-                    client.send('error')
                     pass
 
                 if x.code == STATUS.UNRECOGNIZED_BS:
@@ -211,12 +211,13 @@ class vtsd(object):
 
 
     def __device_is_authenticated(self, uuid, credentials, bs=False):  # FIXME : connect to vAAA_simulation service
+        #FIXME: @WARNING THIS IS JUST FOR TEST, BEACAUSE WE DONT HAVE THE FUCKING VAAA
+        #return 200
         response = False
 
         while True:
             response = raw_input(
-                "Incoming registration request from {}, cred: {}. Do you want to accept it? (y/n) ".format('BASE STATION' if bs else '', uuid,
-                                                                                                               credentials))
+                "Incoming registration request from {} {}. Do you want to accept it? (y/n) ".format('BASE STATION' if bs else '', uuid.encode('utf-8')))
             if (response == "y") or (response == "n"):
                 break
 

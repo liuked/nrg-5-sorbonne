@@ -60,11 +60,11 @@ static void* __app_tx(void *arg){
     int size;
     uint16_t proto;
     while(1) {
+        size = fill_data_buf(buf, &power_meter.dev_id, power_meter.usage);
+        int send_bytes = nso_send(buf, size, NULL, APP_PROTO);
+        printf("send %d bytes! [%llx %lf]\n", send_bytes, *(uint64_t*)&power_meter.dev_id, power_meter.usage);
+        sleep(REPORT_RATE_S);
         if (!is_stop()) {
-            size = fill_data_buf(buf, &power_meter.dev_id, power_meter.usage);
-            int send_bytes = nso_send(buf, size, NULL, APP_PROTO);
-            printf("send %d bytes! [%llx %lf]\n", send_bytes, *(uint64_t*)&power_meter.dev_id, power_meter.usage);
-            sleep(REPORT_RATE_S);
             power_meter.usage += USAGE_PER_SEC * REPORT_RATE_S;
         }
     }
@@ -73,15 +73,18 @@ static void* __app_tx(void *arg){
 
 #define CMD_STOP_CHARGE 0
 #define CMD_START_CHARGE 1
+#define CHARGE_PIN 27
 
 static void process_cmd(uint8_t *buf, int size, power_meter_t *pw) {
     switch(*buf) {
         case CMD_STOP_CHARGE:
             set_stop(1);
+            digitalWrite(CHARGE_PIN, LOW);
             printf("stop charge!\n");
             break;
         case CMD_START_CHARGE:
             set_stop(0);
+            digitalWrite(CHARGE_PIN, HIGH);
             printf("start charge!\n");
             break;
         default:
@@ -102,9 +105,8 @@ static void* __app_rx(void *arg){
 }
 
 static void turn_on_led() {
-    wiringPiSetup();
-    pinMode(LED_PIN, OUTPUT);
     digitalWrite(LED_PIN, HIGH);
+    digitalWrite(CHARGE_PIN, HIGH);
 }
 
 static void turn_off_led(int signo) {
@@ -112,12 +114,18 @@ static void turn_off_led(int signo) {
     fprintf(fp, "%lf", power_meter.usage);
     fclose(fp);
     digitalWrite(LED_PIN, LOW);
+    digitalWrite(CHARGE_PIN, LOW);
     exit(-1);
 }
 
 static void __app_main() {
     pthread_t tx, rx;
     init_power_meter(&power_meter);
+
+    wiringPiSetup();
+    pinMode(LED_PIN, OUTPUT);
+    pinMode(CHARGE_PIN, OUTPUT);
+
     pthread_create(&tx, NULL, __app_tx, NULL);
     pthread_create(&rx, NULL, __app_rx, NULL);
     while (!nso_is_connected());
