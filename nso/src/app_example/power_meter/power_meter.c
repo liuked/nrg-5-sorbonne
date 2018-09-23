@@ -9,6 +9,7 @@
 
 #define USAGE_PER_SEC 6.6916087962962962962962962962963e-4
 #define REPORT_RATE_S 1
+#define REPORT_RATE_uS 100000
 #define APP_PROTO 0x0800
 
 #define LED_PIN 28
@@ -23,10 +24,13 @@ typedef struct {
 
 power_meter_t power_meter;
 
-static int fill_data_buf(uint8_t *buf, nso_addr_t *dev_id, double usage) {
+static int fill_data_buf(uint8_t *buf, nso_addr_t *dev_id, double usage, uint16_t seq) {
+    int len = NSO_ADDR_LEN + sizeof(usage);
     memcpy(buf, (uint8_t*)dev_id, NSO_ADDR_LEN);
     memcpy(buf + NSO_ADDR_LEN, (uint8_t*)&usage, sizeof(usage));
-    return NSO_ADDR_LEN + sizeof(usage);
+    memcpy(buf + len, (uint16_t*)&seq, sizeof(seq));
+    len += sizeof(seq);
+    return len;
 }
 
 static void init_power_meter(power_meter_t *pw) {
@@ -59,12 +63,14 @@ static void* __app_tx(void *arg){
     char buf[1024];
     int size;
     uint16_t proto;
+    uint16_t seq;
+    seq = 0;
     while(1) {
-        size = fill_data_buf(buf, &power_meter.dev_id, power_meter.usage);
-        int send_bytes = nso_send(buf, size, NULL, APP_PROTO);
-        printf("send %d bytes! [%llx %lf]\n", send_bytes, *(uint64_t*)&power_meter.dev_id, power_meter.usage);
-        sleep(REPORT_RATE_S);
         if (!is_stop()) {
+            size = fill_data_buf(buf, &power_meter.dev_id, power_meter.usage, seq++);
+            int send_bytes = nso_send(buf, size, NULL, APP_PROTO);
+            printf("send %d bytes! [%llx %lf]\n", send_bytes, *(uint64_t*)&power_meter.dev_id, power_meter.usage);
+            usleep(REPORT_RATE_uS);
             power_meter.usage += USAGE_PER_SEC * REPORT_RATE_S;
         }
     }
@@ -73,18 +79,15 @@ static void* __app_tx(void *arg){
 
 #define CMD_STOP_CHARGE 0
 #define CMD_START_CHARGE 1
-#define CHARGE_PIN 27
 
 static void process_cmd(uint8_t *buf, int size, power_meter_t *pw) {
     switch(*buf) {
         case CMD_STOP_CHARGE:
             set_stop(1);
-            digitalWrite(CHARGE_PIN, LOW);
             printf("stop charge!\n");
             break;
         case CMD_START_CHARGE:
             set_stop(0);
-            digitalWrite(CHARGE_PIN, HIGH);
             printf("start charge!\n");
             break;
         default:
@@ -105,8 +108,9 @@ static void* __app_rx(void *arg){
 }
 
 static void turn_on_led() {
+    wiringPiSetup();
+    pinMode(LED_PIN, OUTPUT);
     digitalWrite(LED_PIN, HIGH);
-    digitalWrite(CHARGE_PIN, HIGH);
 }
 
 static void turn_off_led(int signo) {
@@ -114,18 +118,12 @@ static void turn_off_led(int signo) {
     fprintf(fp, "%lf", power_meter.usage);
     fclose(fp);
     digitalWrite(LED_PIN, LOW);
-    digitalWrite(CHARGE_PIN, LOW);
     exit(-1);
 }
 
 static void __app_main() {
     pthread_t tx, rx;
     init_power_meter(&power_meter);
-
-    wiringPiSetup();
-    pinMode(LED_PIN, OUTPUT);
-    pinMode(CHARGE_PIN, OUTPUT);
-
     pthread_create(&tx, NULL, __app_tx, NULL);
     pthread_create(&rx, NULL, __app_rx, NULL);
     while (!nso_is_connected());

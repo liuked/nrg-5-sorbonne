@@ -15,15 +15,11 @@ python3 example.py &> $RT_PATH/nrg5-log/aaa.log &
 popd
 
 echo "open AAA module"
-sleep 10
+sleep 1
 
-pushd $NSO/src/app_example/power_meter
-while [ "`ps aux | grep power_meter | grep -v grep`" == "" ]
-do
-    ./power_meter ../../../config/config_example &> $RT_PATH/nrg5-log/nso.log &
-    sleep 3
-done
-popd
+#pushd $NSO/src/app_example/power_meter
+#./power_meter ../../../config/config_example &> $RT_PATH/nrg5-log/nso.log &
+#popd
 
 echo "start nso device"
 sleep 1
