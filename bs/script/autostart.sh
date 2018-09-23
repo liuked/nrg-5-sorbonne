@@ -17,7 +17,7 @@ python3 example.py &> $RT_PATH/nrg5-log/aaa.log &
 popd
 
 echo "open AAA module"
-sleep 5
+sleep 1
 
 pushd $NRG5_TOPDIR/vtsd/
 python vTSD_launcher.py -p 1234 --vson_addr 127.0.0.1 --vson_port 5000 &> $RT_PATH/nrg5-log/vtsd.log &
@@ -54,12 +54,9 @@ popd
 echo "start DPTR"
 sleep 1
 
-pushd $BS/src/bs_app
-while [ "$(ps aux | grep bs_app | grep -v grep)" == "" ]
-do
-    ./bs_app ../../config/config_example &> $RT_PATH/nrg5-log/bs.log &
-    sleep 3
-done
-popd
+#pushd $BS/src/bs_app
+#./bs_app ../../config/config_example &> $RT_PATH/nrg5-log/bs.log &
+#popd
 
+echo "start base station"
 
