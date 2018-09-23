@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 import socketserver, sys, os
 import struct
 import logging
@@ -23,16 +24,46 @@ HOST_PORT = args.port
 WEB_ADDR = args.web_addr
 WEB_PORT = args.web_port
 
+APP_DATA_LEN = 18
+
 dev_id_map = {}
 
 class service(socketserver.BaseRequestHandler):
 
+
     def handle(self):
+
+        #seq means the next expected sequence number
+        self.seq = 0
+        self.lost = 0
+        self.received = 0
+        self.per = 0
+        self.disordered = 0
+        self.pdr = 0 # disordered/all packets
+        self.losses = []
 
         def __prepare_report(data):
             #8B devid 8B usage#
-            dev_id, usage = struct.unpack("=Qd", data)
-            #client address
+            dev_id, usage, self.new_seq = struct.unpack("=QdH", data)
+
+            self.received = self.received + 1
+
+            if self.new_seq > self.seq:
+                for i in range(self.seq, self.new_seq):
+                    self.losses.append(i)
+                self.lost = len(self.losses)
+                self.seq = self.new_seq + 1
+            elif self.new_seq < self.seq:
+                self.disordered = self.disordered + 1
+                self.losses.remove(self.new_seq)
+                self.lost = self.lost - 1
+            else:
+                self.seq = self.new_seq + 1
+
+            self.per = self.lost / self.seq
+            self.pdr = self.disordered / self.seq
+
+            # client address
             addr, port = self.client_address
             return dev_id, usage, addr, port
 
@@ -56,7 +87,7 @@ class service(socketserver.BaseRequestHandler):
                     logging.debug("recv from webserver timeout!")
 
         def __tx_data_to_webserver(appsock):
-            data = appsock.recv(16) #8B devid and 8B usage
+            data = appsock.recv(APP_DATA_LEN) #8B devid and 8B usage
             dev_id, usage, addr, port= __prepare_report(data)
 
             if dev_id not in dev_id_map:
@@ -64,7 +95,7 @@ class service(socketserver.BaseRequestHandler):
                 dev_id_map[dev_id] = True
                 threading.Thread(target = __rx_thr_main, args=(appsock, dev_id)).start()
 
-            url = "http://{}:{}/send?id={}&addr={}:{}&data={:.4f}".format(WEB_ADDR, WEB_PORT, hex(dev_id), addr, port, usage)
+            url = "http://{}:{}/send?id={}&addr={}:{}&data={:.4f}(PER:{:.2e})".format(WEB_ADDR, WEB_PORT, hex(dev_id), addr, port, usage, self.per)
             with request.urlopen(url) as f:
                 logging.debug("report date to server: {}".format(url))
 
@@ -75,7 +106,7 @@ class service(socketserver.BaseRequestHandler):
             try:
                 __tx_data_to_webserver(self.request)
             except Exception as e:
-                print(e)
+                logging.debug(e)
                 break
 
 

@@ -121,7 +121,8 @@ class service(socketserver.BaseRequestHandler):
                 #forward all data to application server
                 entry.sock.sendall(data)
             except Exception as e:
-                print(e)
+                logging.debug("rx thread error!")
+                logging.debug(e)
                 break
 
 

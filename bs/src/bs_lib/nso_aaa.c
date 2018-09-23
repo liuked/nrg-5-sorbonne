@@ -41,7 +41,8 @@ void aaa_init() {
     addr.sin_port = htons(nsol->aaa_port);
     addr.sin_addr.s_addr = nsol->aaa_addr.s_addr;
 
-    connect(aaa_mod.sockfd, (struct sockaddr*)&addr, sizeof(addr));
+    while(connect(aaa_mod.sockfd, (struct sockaddr*)&addr, sizeof(addr)) < 0)
+        LOG_DEBUG("AAA module is not connectable!\n");
 }
 
 void aaa_uninit() {
