@@ -2,11 +2,9 @@ import sys, os
 sys.path.append(os.path.abspath(os.path.join("..")))
 from common.Def import *
 from vSON_graph import *
-from vSON_def import *
 import socket
 import threading
 import struct
-
 
 
 class vson(object):
@@ -29,8 +27,11 @@ class vson(object):
         while True:
             client, address = self.sock.accept()
             logging.info("Receive connection from " + str(address))
-            # client.settimeout(60)
-            threading.Thread(target=self.__listen_to_bs, args=(client, address)).start()
+
+            t = threading.Thread(target=self.__listen_to_bs, args=(client, address))
+            t.setDaemon(True)
+            t.start()
+
             logging.debug("Opening a threaded socket for client: " + str(address))
 
 
@@ -53,24 +54,49 @@ class vson(object):
 
 
     def __process_topo_repo(self, src, dst, msg):
-        logging.info("Processing TOPOLOGY REPORT: {}".format(msg))
+        logging.info("Processing TOPOLOGY REPORT: {}".format(" ".join("{:02X}".format(ord(c)) for c in msg)))
         #TODO: push data in topology
-        return None
+
+        intfs = []
+        nbrs = []
 
 
+        # ## message format:
+        # 1B    :battery
+        # 1B    :number of interfaces(N)
+        # Nx2B  :interface (index[1], quality[1])
+        # 2B    :number on neighbours(M)
+        # Mx10B  :Neighbour (ID[8], quality[1], interface[1])
 
+        batt, N, rest = struct.unpack("!BB{}s".format(len(msg)-2), msg)
+        logging.debug("batt: {:X}, N: {}, rest: {}".format(batt, N, " ".join("{:02X}".format(ord(c)) for c in rest)))
+        if N != 0:
+            itfs_raw, M, nbrs_raw = struct.unpack("!{}sH{}s".format( (N*2), (len(rest)-2-(N*2)) ), rest)
+            logging.debug("intfs: {}, M: {}, rest: {}". format(" ".join("{:02X}".format(ord(c)) for c in itfs_raw), M, " ".join("{:02X}".format(ord(c)) for c in nbrs_raw)))
+            for i in range (0, N):
+                idx, q, itfs_raw = struct.unpack("!BB{}s".format((N-i-1)*2), itfs_raw)
+                logging.debug("idx: {:X}, {}; rest: {}".format(idx, q, " ".join("{:02X}".format(ord(c)) for c in itfs_raw)))
+                intfs.append((idx, q))
 
+        if M != 0:
+            for i in range (0, M):
+                uuid, lq, intf_idx, nbrs_raw = struct.unpack("!QBB{}s".format((M-1-i)*10), nbrs_raw)
+                logging.debug("nbr: {:X}, {}, {:X}; rest: {}".format(uuid, lq, intf_idx, " ".join("{:02X}".format(ord(c)) for c in nbrs_raw)))
+                nbrs.append((src, uuid, lq, intf_idx))
 
-    def __receive_nso_hdr(self, sock):
-        nso_hdr = sock.recv(NSO_HDR_LEN)
-        if nso_hdr:
-            logging.debug("Unpacking header {}".format(" ".join("{:02x}".format(ord(c)) for c in nso_hdr)))
-            try:
-                src, dst, proto, length = struct.unpack("!QQHH", nso_hdr)
-            except struct.error:
-                raise SouthboundException(ERROR.SOUTHBOUND_NOT_NSO, 'received a non NSO packet')
+        logging.debug("structure unpacked:\n"
+                      "batt: {}\n "
+                      "#intfs: {}\n "
+                      "intfs: {}\n "
+                      "#nbrs: {}\n "
+                      "nbrs: {}".format(batt,
+                                        N,
+                                        intfs,
+                                        M,
+                                        nbrs)
+                      )
 
-            return (src, dst, proto, length, nso_hdr)
+        return 'received'
 
 
 
@@ -78,10 +104,10 @@ class vson(object):
 
     def __process_SON(self, src, dst, sock, pl_size):
         payload = sock.recv(pl_size)
-        logging.info("Processing SON message: {}".format(" ".join("{:02x}".format(ord(c)) for c in payload)))
+        logging.info("Processing SON message: {}".format(" ".join("{:02X}".format(ord(c)) for c in payload)))
 
         msg_typ, msg = struct.unpack("!B{}s".format(pl_size-1), payload)
-        logging.info("Received message type [{:02x}]".format(msg_typ))
+        logging.info("Received message type [{:02X}]".format(msg_typ))
 
         if msg_typ == TOPO_REPO:
             reply = self.__process_topo_repo(src, dst, msg)
@@ -92,9 +118,26 @@ class vson(object):
 
 
 
+    def __receive_nso_hdr(self, sock):
+        nso_hdr = sock.recv(NSO_HDR_LEN)
+        if len(nso_hdr) == NSO_HDR_LEN:
+            logging.debug("Unpacking header {}".format(" ".join("{:02X}".format(ord(c)) for c in nso_hdr)))
+            try:
+                src, dst, proto, length = struct.unpack("!QQHH", nso_hdr)
+            except struct.error:
+                raise NSOException(ERROR.SOUTHBOUND_NOT_NSO, 'received a non NSO packet')
+
+            return (src, dst, proto, length, nso_hdr)
+
+        else:
+            raise NSOException(ERROR.SOUTHBOUND_NOT_NSO, 'received a non NSO packet')
+
+
+
+
+
 
     def __listen_to_bs(self, client, address):
-        size = 1024
 
         while True:
 
@@ -104,7 +147,7 @@ class vson(object):
                 src, dst, proto, length, hdr_str = self.__receive_nso_hdr(client)
 
                 if src and dst and length and hdr_str:
-                    logging.info("Received packet protocol [{:02x}], payload size = {}".format(proto, length-NSO_HDR_LEN))
+                    logging.info("Received packet protocol [{:02X}], payload size = {}".format(proto, length-NSO_HDR_LEN))
 
                     # FIXME: extend message discriminator
                     if proto == PROTO.SON:
@@ -113,21 +156,22 @@ class vson(object):
                         response = self.__generate_unsupported_msgtype_err(src, dst)
 
                     client.send(response)
-                    logging.debug("Replying to " + str(address) + " with " + "{}".format(" ".join("{:02x}".format(ord(c)) for c in response)))
+                    logging.debug("Replying to " + str(address) + " with " + "{}".format(" ".join("{:02X}".format(ord(c)) for c in response)))
 
 
 
-            except SouthboundException as x:
+            except NSOException as x:
                 if x.code == ERROR.SOUTHBOUND_NOT_NSO:
+                    client.send('error')
                     pass
 
 
 
-            # raise Exception, ('Client Disconnected')
-            except Exception:
-                print "vSON_listener: error ", sys.exc_info()
-                client.close()
-                raise
+            # # raise Exception, ('Client Disconnected')
+            # except Exception:
+            #     print "vSON_listener: error ", sys.exc_info()
+            #     client.close()
+            #     raise
 
 
 

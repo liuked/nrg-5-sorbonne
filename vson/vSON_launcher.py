@@ -1,9 +1,19 @@
-from vSON_southbound import *
+import sys, os
+sys.path.append(os.path.abspath(os.path.join("..")))
+from vSON_southbound import vson
+from vSON_northbound import RESTfulAPI
+import logging
+from optparse import OptionParser
+import threading
+
+
+### set log destination
+logging.basicConfig(filename="vSON.log", level=logging.DEBUG)
+
+
 
 if __name__ == "__main__":
 
-    ### set log destination
-    logging.basicConfig(filename="vSON_listener.log", level=logging.DEBUG)
 
     parser = OptionParser()
     parser.add_option("-p", "--port", dest="port_num", help="select on wich port to open the listener, default = 2904",
