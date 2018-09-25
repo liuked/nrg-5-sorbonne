@@ -46,20 +46,20 @@ class vtsd(object):
 
     def __generate_device_reg_reply(self, dst, src, answer):
         # 8B src, 8B dst, 2B proto, 2B len, 1B MSG_TYPE, 1B ANSWER
-        msg = struct.pack("!QQHHBB", src, dst, PROTO.TSD, NSO_HDR_LEN + 2, MSGTYPE.DEV_REG_REPLY, answer)
+        msg = struct.pack("!QQHHBB", src, dst, PROTO.TSD, NSO_HDR_LEN + 2, TSDMSG.DEV_REG_REPLY, answer)
         return msg
 
 
     def __generate_bs_reg_reply(self, dst, src, answer):
         # 8B src, 8B dst, 2B proto, 2B len, 1B MSG_TYPE, 1B ANSWER
-        msg = struct.pack("!QQHHBB", src, dst, PROTO.TSD, NSO_HDR_LEN + 2, MSGTYPE.BS_REG_REPLY, answer)
+        msg = struct.pack("!QQHHBB", src, dst, PROTO.TSD, NSO_HDR_LEN + 2, TSDMSG.BS_REG_REPLY, answer)
         return msg
 
 
 
     def __generate_unsupported_msgtype_err(self, src, dst):
         # 8B src, 8B dst, 2B proto, 2B len, 1B MSG_TYPE, 1B ANSWER
-        msg = struct.pack("!QQHHB", src, dst, PROTO.TSD, NSO_HDR_LEN + 1, MSGTYPE.UNSUPPORTED_MSGTYPE_ERROR)
+        msg = struct.pack("!QQHHB", src, dst, PROTO.TSD, NSO_HDR_LEN + 1, TSDMSG.UNSUPPORTED_MSGTYPE_ERROR)
         return msg
 
 
@@ -137,9 +137,9 @@ class vtsd(object):
         msg_typ, msg = struct.unpack("!B{}s".format(pl_size-1), payload)
         logging.info("Received message type [{:02x}]".format(msg_typ))
 
-        if msg_typ == MSGTYPE.DEV_REG:
+        if msg_typ == TSDMSG.DEV_REG:
             reply = self.__process_dev_reg(src, dst, msg)
-        elif msg_typ == MSGTYPE.BS_REG:
+        elif msg_typ == TSDMSG.BS_REG:
             reply = self.__process_bs_reg(src, dst, msg)
         else:
             reply = self.__generate_unsupported_msgtype_err(src, dst)
@@ -153,7 +153,7 @@ class vtsd(object):
             try:
                 src, dst, proto, length = struct.unpack("!QQHH", nso_hdr)
             except struct.error:
-                raise NSOException(ERROR.SOUTHBOUND_NOT_NSO, 'received a non NSO packet')
+                raise NSOException(STATUS.SOUTHBOUND_NOT_NSO, 'received a non NSO packet')
 
             return (src, dst, proto, length, nso_hdr)
 
@@ -183,10 +183,10 @@ class vtsd(object):
 
 
             except NSOException as x:
-                if x.code == ERROR.SOUTHBOUND_NOT_NSO:
+                if x.code == STATUS.SOUTHBOUND_NOT_NSO:
                     logging.warning('Received not NSO packet from {}: {}'.format(address, hdr_str))
                     pass
-                if x.code == ERROR.UNRECOGNIZED_BS:
+                if x.code == STATUS.UNRECOGNIZED_BS:
                     logging.warning('Base Station not Authenticated, closing listener...')
                     return
 

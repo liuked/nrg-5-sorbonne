@@ -3,28 +3,111 @@ import json
 import sys, os
 sys.path.append(os.path.abspath(os.path.join("..")))
 from common.Def import *
+import random
 
 class Node:
 
-    def __init__(self, ID=0, battery=None, sign="", reg=False):
-        logging.debug('creating new node {}'.format(ID))
-        self.ID = ID
-        self.registered = reg
-        self.battery = battery
-        self.sign = sign
-        self.i_links = []
-        self.o_links = []
-        self.interfaces = []
+    def __init__(self, _ID=0, _sign="", _description=None, _registered=False, _interfaces = {}, _o_links = {}, _battery=None):
+        logging.debug('creating new node {}'.format(_ID))
+        try:
+            assert isinstance(_ID, int)
+            self.ID = _ID
+            self.reg = _registered
+            self.sign = _sign
+            self.desc = None
+            self.batt = _battery
+            self.N = len(_interfaces)
+            self.intfs = {}
+            if self.N:
+                for i in _interfaces:
+                    assert isinstance(i, Interface)
+                    self.intfs[i.index]=i
+            self.M = len(_o_links)
+            self.o_links = []
+            if self.M:
+                for l in _o_links:
+                    assert isinstance(l, Link)
+                    self.o_links.append(l)
+            self.i_links = []
+
+        except AssertionError:
+            raise NSOException(STATUS.INVALID_NODE_ID, "ID must be an integer, found {}".format(type(_ID)))
+
+    def __repr__(self):
+        return json.dumps(self.tojson())
+
+    def setBattery(self, val):
+        self.batt = val
+
+
+    def addInterface(self, intf):
+        assert isinstance(intf, Interface)
+
+        if intf.index not in self.intfs:
+            self.intfs[intf.index] = intf
+            logging.debug("Added interface {} present in node {:X}".format(intf, self.ID))
+        elif self.intfs[intf.index].quality != intf.quality:
+            self.intfs[intf.index].quality = intf.quality
+            logging.debug("Updating quality factor for interface {} in node {:X}".format(intf, self.ID))
+        else:
+            logging.warning("No changes in interface {} in node {:X}".format(intf, self.ID))
+            return STATUS.INTERFACE_ALREADY_PRESENT
+
+
+    def isRegistered(self):
+        return self.reg
+
+
+    def add_outlink(self, ol):
+        assert isinstance(ol, Link)
+        l = next((x for x in self.o_links if x.isSame(ol)), None)
+        if l is None:
+            self.o_links.append(ol)
+            logging.debug("Added NEW link with node {:X} to node {:X} on interface {:X}".format(ol.end, ol.begin, ol.intf_idx))
+        elif l != ol:   # if is same but different values -> UPDATE!
+            l = ol
+            logging.debug("Updating link {:X}->{:X} (intf {:X})".format(l.begin, l.end, l.intf_idx))
+        else:
+            logging.warning("No changes made on {:X}->{:X} (intf {:X})".format(l.begin, l.end, l.intf_idx))
+
+    def add_inlink(self, il):
+        assert isinstance(il, Link)
+        l = next((x for x in self.i_links if x.isSame(il)), None)
+        if l is None:
+            self.i_links.append(il)
+            logging.debug("Registered NEW entering link from node {:X} in node {:X} (interface {:X})".format(il.begin, il.end, il.intf_idx))
+        elif l != il:   # if is same but different values -> UPDATE!
+            l = il
+            logging.debug("Updating incoming link {:X}<-{:X} (intf {:X})".format(l.end, l.begin, l.intf_idx))
+        else:
+            logging.warning("No changes made on incoming {:X}<-{:X} (intf {:X})".format(l.end, l.begin, l.intf_idx))
 
 
 
     def tojson(self):
+
         r = {
-            'ID': self.ID,
-            'description': self.descr,
-            'energy': "45%",
-            'o_links': len(self.o_links)
+            'ID': hex(self.ID),
+            'registered': bool(self.reg),
+            'signature': self.sign,
+            'description': self.desc,
+            'battery': self.batt,
+            'n_intfs': self.N,
+            'intfs': [],
+            'n_nbrs': self.M,
+            'o_links': [],
+            'i_links': [],
         }
+
+        for i in self.intfs:
+            r['intfs'].append(self.intfs[i].tojson())
+
+        for i in self.o_links:
+            r['o_links'].append(self.o_links[i].tojson())
+
+        for i in self.i_links:
+            r['i_links'].append(self.i_links[i].tojson())
+
 
         return r
 
@@ -36,88 +119,156 @@ class Interface:
 
     def tojson(self):
         r = {
-            'index': self.index,
+            'index': hex(self.index),
             'quality': self.quality
         }
 
         return r
 
+    def __repr__(self):
+      return json.dumps(self.tojson())
+
 
 class Link:
-    def __init__(self, topo, beginID, endID, link_q, intf_idx):
+    def __init__(self, beginID, endID, link_q, intf_idx):
         self.begin = beginID
         self.end = endID
         self.lq = link_q
-        self.interface = intf_idx
-        self.cost = 0.0
-        #TODO:  check ID in topology, add new node if end nod eis nort present (unregistered)
+        self.intf_idx = intf_idx
+
+
+
+    def __repr__(self):
+      return json.dumps(self.tojson())
+
+
+    def get_cost(self, function=random.random):
+        #TODO Method to compute cost
+        return function()
+
+    def isSame(self, link):
+        assert isinstance(link, Link)
+        return (link.begin == self.begin and link.end==self.end and link.intf_idx==self.intf_idx)
 
 
     def tojson(self):
         r = {
-            'begin': self.begin,
-            'end': self.end,
-            'link_qiality': self.lq,
-            'interface': self.end,
-            'cost': self.cost
-        }
+            'begin': hex(self.begin),
+            'end': hex(self.end),
+            'link_quality': self.lq,
+            'interface': hex(self.intf_idx),
+            'cost': self.get_cost()
+            }
 
         return r
 
-    #TODO Method to compute cost
+    def get_reversed(self):
+        return Link(self.begin, self.end, self.lq, self.intf_idx)
+
+
 
 
 class TopologyGraph:
+
+    """
+    Nodes are stored in a dictionary with ID as a key
+    """
+
     def __init__(self):
         self.ID = 0xF1257
-        self.nodes = []
+        self.nodes = {}
+
+
+
+    def __repr__(self):
+      return json.dumps(self.tojson())
+
 
     def tojson(self):
         j = {
-            'ID': self.ID,
+            'ID': hex(self.ID),
             'size': len(self.nodes),
             'nodes': []
         }
 
         for n in self.nodes:
-            j['nodes'].append(n.tojson())
+            j['nodes'].append(self.nodes[n].tojson())
 
         return j
 
 
-    def push_node(self, ID, descr, signature, reg):
-        try:
-            for n in self.nodes:
-                if n.ID == ID:
-                    return ERROR.NODE_ALREADY_EXISTENT
+    def isNodeRegistered(self, ID):
+        if ID in self.nodes:
+            return self.nodes[ID].isRegistered()
+        return STATUS.NODE_NOT_REGISTERED
 
-            newnode = Node(ID, descr, signature, reg)
-            self.nodes.append(newnode)
-            logging.info("Append node {}".format(newnode.tojson()))
-            return newnode.tojson()
+    def put_node_info(self, ID, **kwargs):
+        print ID, "; ID in topology:"
+        for id in self.nodes:
+            print id, ' '
+        if ID in self.nodes:
+            for key in kwargs:
+                if key == 'battery':
+                    self.nodes[ID].setBattery(kwargs['battery'])
+                if key == 'intfs':
+                    for i in kwargs['intfs']:
+                        self.nodes[ID].addInterface(i)
+                if key == 'nbrs':
+                    for n in kwargs['nbrs']:
+                        assert isinstance(n, Link)
+                        try:
+                            self.__enforce_link(n)
+                        except NSOException as exc:
+                            logging.error(exc.msg)
+                            raise
+
+            return STATUS.SUCCESS, self.nodes[ID].tojson()
+
+        logging.critical("Trying to update node not registered {:X}".format(ID))
+        return STATUS.NODE_NOT_FOUND, None
+
+
+
+    def __enforce_link(self, link):
+        if (link.begin in self.nodes and link.end in self.nodes):
+            self.nodes[link.begin].add_outlink(link)
+            self.nodes[link.end].add_inlink(link)
+
+    def push_node(self, ID, sign, reg, msg):
+        try:
+            if ID in self.nodes:
+                return STATUS.NODE_ALREADY_EXISTENT
+            else:
+                newnode = Node(ID, _sign=sign, _registered=reg, _description=msg)
+                self.nodes[ID] = newnode
+                logging.info("Append node {}".format(newnode.tojson()))
+                return newnode.tojson()
         except:
             logging.error("Error appending node")
-            return ERROR.INTERNAL_ERROR
+            raise
+
+
 
     def get_node(self, ID):
         logging.info("Retrieving node {} informations".format(ID))
-        for node in self.nodes:
-            if node.ID == ID:
-                return node.tojson()
-            return ERROR.NODE_NOT_FOUND
+        if ID in self.nodes:
+            return self.nodes[ID].tojson()
+        return STATUS.NODE_NOT_FOUND
 
     def get_topo_all(self):
         logging.info("Retrieving topology {} informations")
-        return self.tojson()
+        return json.dumps(self.tojson())
 
     def delete_node(self, ID):
         for node in self.nodes:
             if node.ID == ID:
                 self.nodes.remove(node)
                 return
-        return ERROR.NODE_NOT_FOUND
+        return STATUS.NODE_NOT_FOUND
 
 
+
+#TODO: Add dijksta computation
 
 ### Global variabble for the topology graph
 topo = TopologyGraph()
