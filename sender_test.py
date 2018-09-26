@@ -22,11 +22,11 @@ class Sender(object):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
         try:
-            # print "Connecting to ", TSD_IP, ":", TSD_PORT
-            # self.sock.connect((TSD_IP, TSD_PORT))
-
-            print "Connecting to ", SON_IP, ":", SON_PORT
-            self.sock.connect((SON_IP, SON_PORT))
+            print "Connecting to ", TSD_IP, ":", TSD_PORT
+            self.sock.connect((TSD_IP, TSD_PORT))
+            #
+            # print "Connecting to ", SON_IP, ":", SON_PORT
+            # self.sock.connect((SON_IP, SON_PORT))
 
             print "Succeed! You can start typing messages... \n\n"
         except socket.error, exc:

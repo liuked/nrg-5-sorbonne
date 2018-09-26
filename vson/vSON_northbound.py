@@ -92,11 +92,11 @@ class RESTNode(Resource):
     def delete(self, str_ID):
         ID = int(str_ID, 0)
         logging.info("Received DELETE request for node: {}".format(ID))
-        res = topo.delete_node(ID)
-        logging.debug("Building response: {}".format(res))
-        if res == STATUS.NODE_NOT_FOUND:
+        stat, data = topo.delete_node(ID)
+        logging.debug("Building response: {}".format(data))
+        if stat == STATUS.NODE_NOT_FOUND:
             return "Node not found", 404
-        return res, 200
+        return data, 200
 
 
 

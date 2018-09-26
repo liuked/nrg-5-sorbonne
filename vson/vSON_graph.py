@@ -5,6 +5,7 @@ sys.path.append(os.path.abspath(os.path.join("..")))
 from common.Def import *
 import random
 
+
 class Node:
 
     def __init__(self, _ID=0, _sign="", _description=None, _registered=False, _interfaces = {}, _o_links = {}, _battery=None):
@@ -84,32 +85,55 @@ class Node:
 
 
 
-    def tojson(self):
+    def tojson(self, type='full'):
 
-        r = {
-            'ID': hex(self.ID),
-            'registered': bool(self.reg),
-            'signature': self.sign,
-            'description': self.desc,
-            'battery': self.batt,
-            'n_intfs': self.N,
-            'intfs': [],
-            'n_nbrs': self.M,
-            'o_links': [],
-            'i_links': [],
-        }
+        if type == 'full':
+            r = {
+                'ID': hex(self.ID),
+                'registered': bool(self.reg),
+                'signature': self.sign,
+                'description': self.desc,
+                'battery': self.batt,
+                'n_intfs': self.N,
+                'intfs': [],
+                'n_nbrs': self.M,
+                'o_links': [],
+                'i_links': []
+            }
 
-        for i in self.intfs:
-            r['intfs'].append(self.intfs[i].tojson())
+            for i in self.intfs:
+                r['intfs'].append(self.intfs[i].tojson(type))
 
-        for i in self.o_links:
-            r['o_links'].append(self.o_links[i].tojson())
+            for i in self.o_links:
+                r['o_links'].append(i.tojson(type))
 
-        for i in self.i_links:
-            r['i_links'].append(self.i_links[i].tojson())
+            for i in self.i_links:
+                r['i_links'].append(i.tojson(type))
+
+
+        if type == 'netgraph':
+
+            r = {
+                'id': hex(self.ID),
+                'label': self.desc,
+                'properties': {
+                    'battery': self.batt,
+                    'interfaces': self.N,
+                    'neigbours': self.M,
+                    'nbrs_lst': []
+                }
+
+            }
+
+            for i in self.o_links:
+                r['properties']['nbrs_lst'].append(hex(i.end))
+
 
 
         return r
+
+
+
 
 
 class Interface:
@@ -117,11 +141,13 @@ class Interface:
         self.index = index
         self.quality = quality
 
-    def tojson(self):
-        r = {
-            'index': hex(self.index),
-            'quality': self.quality
-        }
+    def tojson(self, type='full'):
+
+        if type == 'full' or type == 'netgraph':
+            r = {
+                'index': hex(self.index),
+                'quality': self.quality
+            }
 
         return r
 
@@ -151,13 +177,28 @@ class Link:
         return (link.begin == self.begin and link.end==self.end and link.intf_idx==self.intf_idx)
 
 
-    def tojson(self):
-        r = {
-            'begin': hex(self.begin),
-            'end': hex(self.end),
-            'link_quality': self.lq,
-            'interface': hex(self.intf_idx),
-            'cost': self.get_cost()
+    def tojson(self, type='full'):
+
+        if type == 'full':
+            r = {
+                'begin': hex(self.begin),
+                'end': hex(self.end),
+                'link_quality': self.lq,
+                'interface': hex(self.intf_idx),
+                'cost': self.get_cost()
+            }
+
+        if type == 'netgraph':
+            r = {
+                'source': hex(self.begin),
+                'target': hex(self.end),
+                'cost': self.get_cost(),
+
+                'properties': {
+
+                    'link_quality': self.lq,
+                    'interface': hex(self.intf_idx),
+                }
             }
 
         return r
@@ -183,16 +224,30 @@ class TopologyGraph:
     def __repr__(self):
       return json.dumps(self.tojson())
 
+    def tojson(self, type='full'):
 
-    def tojson(self):
-        j = {
-            'ID': hex(self.ID),
-            'size': len(self.nodes),
-            'nodes': []
-        }
+        if type == 'full':
+            j = {
+                'ID': hex(self.ID),
+                'size': len(self.nodes),
+                'nodes': [],
+                'links': []
+            }
+
+        if type == 'netgraph':
+            j = {
+                'type': "NetworkGraph",
+                'protocol': "NSO",
+                'version': "1",
+                'nodes': [],
+                'links': [],
+                'topology_id': hex(self.ID)
+            }
 
         for n in self.nodes:
-            j['nodes'].append(self.nodes[n].tojson())
+            j['nodes'].append(self.nodes[n].tojson(type))
+            for l in self.nodes[n].o_links:
+                j['links'].append(l.tojson(type))
 
         return j
 
@@ -211,9 +266,11 @@ class TopologyGraph:
                 if key == 'battery':
                     self.nodes[ID].setBattery(kwargs['battery'])
                 if key == 'intfs':
+                    self.nodes[ID].N = len(kwargs['intfs'])
                     for i in kwargs['intfs']:
                         self.nodes[ID].addInterface(i)
                 if key == 'nbrs':
+                    self.nodes[ID].M = len(kwargs['nbrs'])
                     for n in kwargs['nbrs']:
                         assert isinstance(n, Link)
                         try:
@@ -222,6 +279,7 @@ class TopologyGraph:
                             logging.error(exc.msg)
                             raise
 
+            self.__update_netgraph()
             return STATUS.SUCCESS, self.nodes[ID].tojson()
 
         logging.critical("Trying to update node not registered {:X}".format(ID))
@@ -229,10 +287,17 @@ class TopologyGraph:
 
 
 
+    def __update_netgraph(self):
+        with open(NETGRAPH_PATH, 'w') as outfile:
+            json.dump(self.tojson('netgraph'), outfile)
+
+
     def __enforce_link(self, link):
-        if (link.begin in self.nodes and link.end in self.nodes):
+        if (link.begin in self.nodes) and (link.end in self.nodes):
             self.nodes[link.begin].add_outlink(link)
             self.nodes[link.end].add_inlink(link)
+        else:
+            raise NSOException(STATUS.INVALID_LINK, "Begin or End node not registered!")
 
     def push_node(self, ID, sign, reg, msg):
         try:
@@ -242,6 +307,7 @@ class TopologyGraph:
                 newnode = Node(ID, _sign=sign, _registered=reg, _description=msg)
                 self.nodes[ID] = newnode
                 logging.info("Append node {}".format(newnode.tojson()))
+                self.__update_netgraph()
                 return newnode.tojson()
         except:
             logging.error("Error appending node")
@@ -260,10 +326,10 @@ class TopologyGraph:
         return json.dumps(self.tojson())
 
     def delete_node(self, ID):
-        for node in self.nodes:
-            if node.ID == ID:
-                self.nodes.remove(node)
-                return
+        for ID in self.nodes:
+            del self.nodes[ID]
+            self.__update_netgraph()
+            return STATUS.SUCCESS
         return STATUS.NODE_NOT_FOUND
 
 

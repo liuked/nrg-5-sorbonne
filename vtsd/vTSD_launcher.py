@@ -85,7 +85,7 @@ class vtsd(object):
         logging.info("Chechink auth...")
         # response = requests.post(vAAA_URL, json=msg)
 
-        response = self.__device_is_authenticated(repr(jdata["message"]), repr(jdata["signature"]))
+        response = self.__device_is_authenticated(int(jdata["message"]), str(jdata["signature"]))
 
         if response == 200:
             logging.info("Authentication {}SUCCEED{}".format(frm.OKGREEN, frm.ENDC))
@@ -119,7 +119,7 @@ class vtsd(object):
         jdata = json.loads(msg)
         logging.info("Chechink auth...")
         # response = requests.post(vAAA_URL, json=msg)
-        response = self.__device_is_authenticated(repr(jdata[u"message"]), repr(jdata[u"signature"]))
+        response = self.__device_is_authenticated(int(jdata[u"message"]), str(jdata[u"signature"]))
         if response == 200:
             logging.info("Authentication {}SUCCEED{}".format(frm.OKGREEN, frm.ENDC))
             reply = self.__generate_bs_reg_reply(src, dst, ANSWER.SUCCESS)
@@ -175,7 +175,7 @@ class vtsd(object):
                     logging.info("{}Received Data Packet: {}".format(frm.WARNING, frm.ENDC))
                     response = ""
                 else:
-                    response = self.__generate_unsupported_msgtype_err()
+                    response = self.__generate_unsupported_msgtype_err(src, dst)
 
                 client.send(response)
                 logging.debug("Replying to " + str(address) + " with " + "{}".format(" ".join("{:02x}".format(ord(c)) for c in response)))
@@ -206,8 +206,8 @@ class vtsd(object):
 
         while True:
             response = raw_input(
-                "Incoming registration request from {}, cred: {}. Do you want to accept it? (yes/no) ".format(hex(uuid),
-                                                                                                               hex(credentials)))
+                "Incoming registration request from {:X}, cred: {}. Do you want to accept it? (yes/no) ".format(uuid,
+                                                                                                               credentials))
             if (response == "yes") or (response == "no"):
                 break
         if response == "yes":
