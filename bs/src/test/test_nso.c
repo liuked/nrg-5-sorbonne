@@ -1,5 +1,4 @@
 #include "nso.h"
-#include "api.h"
 #include <string.h>
 
 
