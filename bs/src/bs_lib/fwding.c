@@ -27,7 +27,7 @@ int fwd_table_add(fwd_table_t *tbl, fwd_entry_t *e) {
     pthread_mutex_lock(&tbl->fwdt_lock);
 #endif
 
-    list_add(&e->ll, &tbl->ll_head);
+    list_add_tail(&e->ll, &tbl->ll_head);
     hash_add(tbl->ht_dest, &e->hl, hash_device_id(e->dest));
     tbl->size++;
 
