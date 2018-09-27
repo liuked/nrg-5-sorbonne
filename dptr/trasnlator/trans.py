@@ -101,7 +101,7 @@ class service(socketserver.BaseRequestHandler):
                 self.request.sendall(nso_data)
 
         nso2tcp_map = _Nso2TcpMap()
-        logging.info("{} connect!\n".format(self.client_address))
+        logging.info("{} connect!".format(self.client_address))
 
         while True:
             try:
@@ -111,6 +111,7 @@ class service(socketserver.BaseRequestHandler):
                 entry = nso2tcp_map.lookup_from_src_id(src_id)
                 if not entry:
                     #connect to the application server, and launch a thread to process rx of that client
+                    logging.info("get a new device!")
                     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     sock.connect((APP_ADDR, APP_PORT))
                     entry = nso2tcp_map.add_entry(src_id, gw_id, proto, sock)
@@ -119,7 +120,7 @@ class service(socketserver.BaseRequestHandler):
 
                 #forward all data to application server
                 entry.sock.sendall(data)
-            except e:
+            except Exception as e:
                 print(e)
                 break
 

@@ -93,4 +93,5 @@ int nso_layer_recv(uint8_t *buf, int size, device_id_t *src, device_id_t *dst, u
 int nso_layer_send(uint8_t *buf, int size, device_id_t *dst, uint16_t proto);
 
 int nso_layer_get_device_id(device_id_t *dev_id);
+int nso_layer_is_connected();
 #endif

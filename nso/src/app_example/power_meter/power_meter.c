@@ -74,11 +74,18 @@ static void* __app_rx(void *arg){
     return NULL;
 }
 
+static void turn_on_led() {
+
+}
+
 static void __app_main() {
     pthread_t tx, rx;
     init_power_meter(&power_meter);
     pthread_create(&tx, NULL, __app_tx, NULL);
-    __app_rx(NULL);
+    pthread_create(&rx, NULL, __app_rx, NULL);
+    while (!nso_is_connected());
+    turn_on_led();
+    while (1);
 }
 
 int main(int argc, char **argv){

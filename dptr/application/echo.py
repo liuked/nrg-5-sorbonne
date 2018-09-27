@@ -28,7 +28,7 @@ class service(socketserver.BaseRequestHandler):
                 data = self.request.recv(1024)
                 logging.debug(data)
                 self.request.sendall(data)
-            except e:
+            except Exception as e:
                 print(e)
                 break
 
