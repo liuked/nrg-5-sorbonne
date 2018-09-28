@@ -141,8 +141,20 @@ static void __fwd_beacon(nso_layer_t *nsol, packet_t *pkt, l2addr_t *src, nso_if
         nxt_id = alloc_device_id((uint8_t*)arp_e->dev_id);
         arp_table_unlock(nsol->arpt);
         device_id_t *src_id = alloc_device_id(hdr->src_devid);
-        fwd_entry_t *fwd_e = alloc_fwd_entry(src_id, nxt_id, iface);
-        fwd_table_add(nsol->local_fwdt, fwd_e);
+
+        fwd_table_lock(nsol->local_fwdt);
+        fwd_entry_t *fwd_e = fwd_table_lookup_unsafe(nsol->local_fwdt, src_id);
+        if (fwd_e)
+            fwd_e->status = FWD_ACTIVE;
+        fwd_table_unlock(nsol->local_fwdt);
+
+        if (!fwd_e) {
+            fwd_e = alloc_fwd_entry(src_id, nxt_id, iface);
+            fwd_table_add(nsol->local_fwdt, fwd_e);
+        } else {
+            free_device_id(src_id);
+            free_device_id(nxt_id);
+        }
     }
     free_device_id(dst_id);
     //nso_layer_fwd(pkt);
