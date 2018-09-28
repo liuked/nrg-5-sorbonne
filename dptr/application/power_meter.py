@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 import socketserver, sys, os
 import struct
 import logging
@@ -52,9 +51,12 @@ class service(socketserver.BaseRequestHandler):
             while True:
                 try:
                     __rx_data_from_webserver(appsock, dev_id)
-                except Exception as e:
-                    logging.debug("recv from webserver timeout!");
+                except socket.timeout as e:
+                    logging.debug("recv from webserver timeout!")
                     logging.debug(e)
+                except:
+                    logging.debug("error")
+                    break
 
         def __tx_data_to_webserver(appsock):
             data = appsock.recv(16) #8B devid and 8B usage
