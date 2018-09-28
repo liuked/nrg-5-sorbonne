@@ -4,12 +4,16 @@ import sys, os
 sys.path.append(os.path.abspath(os.path.join("..")))
 from common.Def import *
 import random
+import threading
+import time
 
+from common.interop import Dptr
 
 class Node:
 
-    def __init__(self, _ID=0, _sign="", _description=None, _registered=False, _interfaces = {}, _o_links = {}, _battery=None):
+    def __init__(self, _ID=0, _sign="", _description=None, _registered=False, _interfaces = {}, _o_links = {}, _battery=None, _bs=False, _dptr=None):
         logging.debug('creating new node {}'.format(_ID))
+        assert isinstance(_bs, bool)
         try:
             self.ID = _ID
             self.reg = _registered
@@ -18,6 +22,8 @@ class Node:
             self.batt = _battery
             self.N = len(_interfaces)
             self.intfs = {}
+            self.bs = _bs
+            self.alive = True   # used for ageing
             if self.N:
                 for i in _interfaces:
                     assert isinstance(i, Interface)
@@ -29,6 +35,7 @@ class Node:
                     assert isinstance(l, Link)
                     self.o_links.append(l)
             self.i_links = []
+            self.dptr = _dptr
 
         except AssertionError:
             raise NSOException(STATUS.INVALID_NODE_ID, "ID must be an integer, found {}".format(type(_ID)))
@@ -38,6 +45,15 @@ class Node:
 
     def setBattery(self, val):
         self.batt = val
+
+
+    def remove_link_fromID(self, beginID):
+        self.i_links = [x for x in self.i_links if x.begin != beginID] #keep only incoming links not from deleted node
+
+
+
+    def remove_link_toID(self, endID):
+        self.o_links = [x for x in self.o_links if x.end != endID] #keep only outgoing links not to deleted node
 
 
     def addInterface(self, intf):
@@ -83,7 +99,6 @@ class Node:
             logging.warning("No changes made on incoming {:X}<-{:X} (intf {:X})".format(l.end, l.begin, l.intf_idx))
 
 
-
     def tojson(self, type='full'):
 
         if type == 'full':
@@ -97,7 +112,8 @@ class Node:
                 'intfs': [],
                 'n_nbrs': self.M,
                 'o_links': [],
-                'i_links': []
+                'i_links': [],
+                'base_station': bool(self.bs)
             }
 
             for i in self.intfs:
@@ -119,7 +135,9 @@ class Node:
                     'battery': self.batt,
                     'interfaces': self.N,
                     'neigbours': self.M,
-                    'nbrs_lst': []
+                    'nbrs_lst': [],
+                    'base_station': bool(self.bs)
+
                 }
 
             }
@@ -196,7 +214,7 @@ class Link:
                 'properties': {
 
                     'link_quality': self.lq,
-                    'interface': hex(self.intf_idx),
+                    'interface': hex(self.intf_idx)
                 }
             }
 
@@ -217,39 +235,20 @@ class TopologyGraph:
     def __init__(self):
         self.ID = 0xF1257
         self.nodes = {}
+        self.__changed = False
+        self.metric = "shortest path"
+        self.ntup = 1
+        self.alpha = 20
 
+        self.__njg = self.tojson('netgraph')
+        self.__update_netgraph()
 
+    def start_device_monitor(self):
+        timerThread = threading.Thread(target=self.__device_monitor)
+        timerThread.daemon = True
+        timerThread.start()
 
-    def __repr__(self):
-      return json.dumps(self.tojson())
-
-    def tojson(self, type='full'):
-
-        if type == 'full':
-            j = {
-                'ID': hex(self.ID),
-                'size': len(self.nodes),
-                'nodes': [],
-                'links': []
-            }
-
-        if type == 'netgraph':
-            j = {
-                'type': "NetworkGraph",
-                'protocol': "NSO",
-                'version': "1",
-                'nodes': [],
-                'links': [],
-                'topology_id': hex(self.ID)
-            }
-
-        for n in self.nodes:
-            j['nodes'].append(self.nodes[n].tojson(type))
-            for l in self.nodes[n].o_links:
-                j['links'].append(l.tojson(type))
-
-        return j
-
+    # Acces to graph operations
 
     def isNodeRegistered(self, ID):
         if ID in self.nodes:
@@ -257,10 +256,9 @@ class TopologyGraph:
         return STATUS.NODE_NOT_REGISTERED
 
     def put_node_info(self, ID, **kwargs):
-        print hex(ID), " ID in topology:"
-        for id in self.nodes:
-            print hex(id), ' '
+
         if ID in self.nodes:
+            self.nodes[ID].alive = True
             for key in kwargs:
                 if key == 'battery':
                     self.nodes[ID].setBattery(kwargs['battery'])
@@ -278,16 +276,99 @@ class TopologyGraph:
                             logging.error(exc.msg)
                             raise
 
+            self.__changed = True
             self.__update_netgraph()
             return STATUS.SUCCESS, self.nodes[ID].tojson()
 
         logging.critical("Trying to update node not registered {:X}".format(ID))
         return STATUS.NODE_NOT_FOUND, None
 
-    def __update_netgraph(self):
-        with open(NETGRAPH_PATH, 'w') as outfile:
-            json.dump(self.tojson('netgraph'), outfile)
+    def tojson(self, type='full'):
+        if type == 'full':
+            j = {
+                'ID': hex(self.ID),
+                'size': len(self.nodes),
+                'nodes': [],
+                'links': []
+            }
 
+        elif type == 'netgraph':
+            j = {
+                'type': "NetworkGraph",
+                'protocol': "NSO",
+                'version': "1",
+                'metric': self.metric,
+                'nodes': [],
+                'links': [],
+                'topology_id': hex(self.ID)
+            }
+
+        for n in self.nodes:
+            j['nodes'].append(self.nodes[n].tojson(type))
+            for l in self.nodes[n].o_links:
+                j['links'].append(l.tojson(type))
+
+
+        return j
+
+
+
+    def get_node(self, ID):
+        logging.info("Retrieving node {} informations".format(ID))
+        if ID in self.nodes:
+            return self.nodes[ID].tojson('netgraph')
+        return STATUS.NODE_NOT_FOUND
+
+    def get_topo_all(self):
+        logging.info("Retrieving topology {} informations")
+        if self.__changed:
+            self.__changed = False
+            self.__njg = self.tojson('netgraph')
+        return self.__njg
+
+    def push_node(self, ID, sign, reg, msg, bs):
+        try:
+            if ID in self.nodes:
+                return STATUS.NODE_ALREADY_EXISTENT
+            else:
+
+                newnode = Node(ID, _sign=sign, _registered=reg, _description=msg, _bs=bs)
+                self.nodes[ID] = newnode
+                logging.info("Append node {}".format('BS' if bool(bs) else '', newnode.tojson()))
+                self.__changed = True
+                self.__update_netgraph()
+                return newnode.tojson()
+        except:
+            logging.error("Error appending node")
+            raise
+
+    def delete_node(self, ID):
+
+        if ID in self.nodes:
+            logging.debug("Deleting node {:X}".format(ID))
+            # delete all the outgoing links
+            for l in self.nodes[ID].o_links:
+                # delete incoming link in every neighbour
+                self.nodes[l.end].remove_link_fromID(ID)
+
+            # delete links in node connected by incoming links
+            for l in self.nodes[ID].i_links:
+                # delete outgoing link in every incoming neighbour
+                self.nodes[l.begin].remove_link_toID(ID)
+
+            deleted = json.dumps(self.nodes[ID].tojson())
+            del self.nodes[ID]
+
+            self.__changed = True
+            self.__update_netgraph()
+            return deleted, STATUS.SUCCESS
+
+        return None, STATUS.NODE_NOT_FOUND
+
+    # PRIVATE
+
+    def __repr__(self):
+        return json.dumps(self.tojson())
 
     def __enforce_link(self, link):
         if (link.begin in self.nodes) and (link.end in self.nodes):
@@ -296,38 +377,61 @@ class TopologyGraph:
         else:
             raise NSOException(STATUS.INVALID_LINK, "Begin or End node not registered!")
 
-    def push_node(self, ID, sign, reg, msg):
-        try:
-            if ID in self.nodes:
-                return STATUS.NODE_ALREADY_EXISTENT
-            else:
-                newnode = Node(ID, _sign=sign, _registered=reg, _description=msg)
-                self.nodes[ID] = newnode
-                logging.info("Append node {}".format(newnode.tojson()))
-                self.__update_netgraph()
-                return newnode.tojson()
-        except:
-            logging.error("Error appending node")
-            raise
+    def __device_monitor(self):
+        next_call = time.time()
+        while True:
 
+            logging.debug("checking nodes...")
+            # setup next call
+            next_call = next_call + (self.ntup * self.alpha)
 
+            logging.debug("TopoMonitor: waiting for lock")
+            lock.acquire()
+            logging.debug("TopoMonitor: lock acquired")
+            try:
 
-    def get_node(self, ID):
-        logging.info("Retrieving node {} informations".format(ID))
-        if ID in self.nodes:
-            return self.nodes[ID].tojson()
-        return STATUS.NODE_NOT_FOUND
+                to_delete = []
 
-    def get_topo_all(self):
-        logging.info("Retrieving topology {} informations")
-        return json.dumps(self.tojson())
+                for n in self.nodes:
+                    # if not self.nodes[n].bs:        #FIXME: so far we don't deregister the BS
+                    if self.nodes[n].alive:
+                        self.nodes[n].alive = False
+                    else:
+                        to_delete.append(self.nodes[n])
 
-    def delete_node(self, ID):
-        for ID in self.nodes:
-            del self.nodes[ID]
-            self.__update_netgraph()
-            return STATUS.SUCCESS
-        return STATUS.NODE_NOT_FOUND
+                for n in to_delete:
+                    logging.warning("Node {:X} expired, deregistering....".format(n.ID))
+                    # unregister from DPTR
+                    d = n.dptr
+                    if d:
+                        response = d.deregister_node(n)
+                        if response.status_code != 200:
+                            raise NSOException(STATUS.DEREGISTRATION_ERROR,
+                                               "failed to de-register node {:X} from dptr {}".format(n, d))
+
+                    # TODO: deregister from vMME
+                    # TODO:: remove routes
+
+                    # delete node from topology
+                    self.delete_node(n.ID)
+
+            except Exception as x:
+                logging.error(x)
+                raise
+
+            finally:
+                lock.release()
+                logging.debug('TopoMonitor: Released a lock')
+
+            time.sleep(max(0, next_call - time.time()))
+
+    def __update_netgraph(self):
+        with open(NETGRAPH_PATH, 'w') as outfile:
+            if self.__changed:
+                self.__changed = False
+                self.__njg = self.tojson('netgraph')
+            json.dump(self.__njg, outfile)
+
 
 
 

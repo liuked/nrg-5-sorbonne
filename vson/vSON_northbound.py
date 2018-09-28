@@ -17,8 +17,9 @@ class RESTfulAPI:
         self.api.add_resource(RESTNode, "/topology/nodes/<string:str_ID>")
         self.api.add_resource(RESTTopo, "/topology")
 
-        self.app.run(port=api_port)
         logging.debug("Opening a thread for rest API")
+        self.app.run(port=api_port)
+
 
 
 
@@ -26,14 +27,19 @@ class RESTfulAPI:
 class RESTTopo(Resource):
 
     def get(self):
+
         logging.info("Received GET request for topology")
-        res = topo.get_topo_all()
+        lock.acquire()
+        try:
+            res = topo.get_topo_all()
 
-        logging.debug("Building response: {}".format(res))
-        if res == STATUS.TOPO_EMPTY:
-            return "Topology not found", 404
-        return res, 200
+            logging.debug("Building response: {}".format(res))
+            if res == STATUS.TOPO_EMPTY:
+                return "Topology not found", 404
 
+            return res, 200
+        finally:
+            lock.release()
 
 
 
@@ -42,35 +48,51 @@ class RESTNode(Resource):
 
 
     def get(self, str_ID):
+
         ID = int(str_ID, 0)
         logging.info("Received GET request for node: {:16X}".format(ID))
-        res = topo.get_node(ID)
-        logging.debug("Building response: {}".format(res))
-        if res == STATUS.NODE_NOT_FOUND:
-            return "Node not found", 404
-        return res, 200
+
+        lock.acquire()
+        try:
+            res = topo.get_node(ID)
+            logging.debug("Building response: {}".format(res))
+            if res == STATUS.NODE_NOT_FOUND:
+                return "Node not found", 404
+            return res, 200
+        finally:
+            lock.release()
+
 
 
     def post(self, str_ID):
+
         ID = int(str_ID, 0)
         prs = reqparse.RequestParser()
         prs.add_argument("descr")
+        prs.add_argument("bs")
         prs.add_argument("signature")
         prs.add_argument("registered")
         a = prs.parse_args()
 
+        bs = (a['bs'] == u'True')
         logging.info("Received POST request, {}".format(a))
-        res = topo.push_node(ID, sign= a["signature"], reg=a["registered"], msg= a["descr"])
 
-        logging.debug("Building response: {}".format(res))
+        lock.acquire()
+        try:
+            res = topo.push_node(ID, sign= a["signature"], reg=a["registered"], msg= a["descr"], bs=bs)
 
-        if res == STATUS.NODE_ALREADY_EXISTENT:
-            return "Node with ID: {:16X} already exist".format(ID), 400
+            logging.debug("Building response: {}".format(res))
 
-        if res == STATUS.INTERNAL_ERROR:
-            return "Server Error", 500
+            if res == STATUS.NODE_ALREADY_EXISTENT:
+                return "Node with ID: {:16X} already exist".format(ID), 400
 
-        return res, 200
+            if res == STATUS.INTERNAL_ERROR:
+                return "Server Error", 500
+
+            return res, 200
+        finally:
+            lock.release()
+
 
     def put(self, str_ID):
 
@@ -78,29 +100,31 @@ class RESTNode(Resource):
 
         prs = reqparse.RequestParser()
         a = prs.parse_args()
+        lock.acquire()
+        try:
+            status, node = topo.put_node_info(ID, a)
 
-        status, node = topo.put_node_info(ID, a)
-
-        if status == STATUS.SUCCESS:
-            return node, 200
-        else:
-            return 'Node not present, unauthorized to add one', 401
-
+            if status == STATUS.SUCCESS:
+                return node, 200
+            else:
+                return 'Node not present, unauthorized to add one', 401
+        finally:
+            lock.release()
 
 
     def delete(self, str_ID):
+
         ID = int(str_ID, 0)
-        logging.info("Received DELETE request for node: {}".format(ID))
-        stat, data = topo.delete_node(ID)
-        logging.debug("Building response: {}".format(data))
-        if stat == STATUS.NODE_NOT_FOUND:
-            return "Node not found", 404
-        return data, 200
-
-
-
-
-
+        logging.info("Received DELETE request for node: {:X}".format(ID))
+        lock.acquire()
+        try:
+            data, stat = topo.delete_node(ID)
+            if stat == STATUS.NODE_NOT_FOUND:
+                return "Node not found", 404
+            logging.debug("Building response: {}".format(data))
+            return data, 200
+        finally:
+            lock.release()
 
 
 
