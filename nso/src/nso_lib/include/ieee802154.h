@@ -180,8 +180,8 @@ typedef unsigned int size_t;
  * @return  Size of frame header on success.
  * @return  0, on error (flags set to unexpected state).
  */
-size_t ieee802154_set_frame_hdr(uint8_t *buf, const uint8_t *src, size_t src_len,
-                                const uint8_t *dst, size_t dst_len,
+size_t ieee802154_set_frame_hdr(uint8_t *buf, uint8_t *src, size_t src_len,
+                                uint8_t *dst, size_t dst_len,
                                 uint8_t flags, uint8_t seq);
 
 /**
@@ -208,7 +208,7 @@ size_t ieee802154_get_frame_hdr_len(const uint8_t *mhr);
  * @return   Length of source address.
  * @return  -EINVAL, if @p mhr contains unexpected flags.
  */
-int ieee802154_get_src(const uint8_t *mhr, uint8_t *src, le_uint16_t *src_pan);
+int ieee802154_get_src(uint8_t *mhr, uint8_t *src);
 
 /**
  * @brief   Gets destination address from MAC header.
@@ -222,7 +222,7 @@ int ieee802154_get_src(const uint8_t *mhr, uint8_t *src, le_uint16_t *src_pan);
  * @return   Length of destination address.
  * @return  -EINVAL, if @p mhr contains unexpected flags.
  */
-int ieee802154_get_dst(const uint8_t *mhr, uint8_t *dst, le_uint16_t *dst_pan);
+int ieee802154_get_dst(uint8_t *mhr, uint8_t *dst);
 
 /**
  * @brief   Gets sequence number from MAC header.
@@ -233,68 +233,9 @@ int ieee802154_get_dst(const uint8_t *mhr, uint8_t *dst, le_uint16_t *dst_pan);
  *
  * @return  The sequence number in @p mhr.
  */
-static inline uint8_t ieee802154_get_seq(const uint8_t *mhr)
+static inline uint8_t ieee802154_get_seq(uint8_t *mhr)
 {
     return mhr[2];
-}
-
-/**
- * @brief   Generates an IPv6 interface identifier from an IEEE 802.15.4 address.
- *
- * @pre (@p eui64 != NULL) && (@p addr != NULL)
- * @see <a href="https://tools.ietf.org/html/rfc4944#section-6">
- *          RFC 4944, section 6
- *      </a>
- * @see <a href="https://tools.ietf.org/html/rfc6282#section-3.2.2">
- *          RFC 6282, section 3.2.2
- *      </a>
- *
- * @param[out] eui64    The resulting EUI-64.
- * @param[in] addr      An IEEE 802.15.4 address.
- * @param[in] addr_len  The length of @p addr. Must be 2 (short address),
- *                      4 (PAN ID + short address), or 8 (long address).
- *
- * @return Copy of @p eui64 on success.
- * @return NULL, if @p addr_len was of illegal length.
- */
-static inline eui64_t *ieee802154_get_iid(eui64_t *eui64, const uint8_t *addr,
-                                          size_t addr_len)
-{
-    int i = 0;
-
-    eui64->uint8[0] = eui64->uint8[1] = 0;
-
-    switch (addr_len) {
-        case 8:
-            eui64->uint8[0] = addr[i++] ^ 0x02;
-            eui64->uint8[1] = addr[i++];
-            eui64->uint8[2] = addr[i++];
-            eui64->uint8[3] = addr[i++];
-            eui64->uint8[4] = addr[i++];
-            eui64->uint8[5] = addr[i++];
-            eui64->uint8[6] = addr[i++];
-            eui64->uint8[7] = addr[i++];
-            break;
-
-        case 4:
-            eui64->uint8[0] = addr[i++] ^ 0x02;
-            eui64->uint8[1] = addr[i++];
-
-            /* Falls through. */
-        case 2:
-            eui64->uint8[2] = 0;
-            eui64->uint8[3] = 0xff;
-            eui64->uint8[4] = 0xfe;
-            eui64->uint8[5] = 0;
-            eui64->uint8[6] = addr[i++];
-            eui64->uint8[7] = addr[i++];
-            break;
-
-        default:
-            return NULL;
-    }
-
-    return eui64;
 }
 
 #ifdef __cplusplus

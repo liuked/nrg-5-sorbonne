@@ -21,8 +21,8 @@
 
 const uint8_t ieee802154_addr_bcast[IEEE802154_ADDR_BCAST_LEN] = IEEE802154_ADDR_BCAST;
 
-size_t ieee802154_set_frame_hdr(uint8_t *buf, const uint8_t *src, size_t src_len,
-                                const uint8_t *dst, size_t dst_len,
+size_t ieee802154_set_frame_hdr(uint8_t *buf, uint8_t *src, size_t src_len,
+                                uint8_t *dst, size_t dst_len,
                                 uint8_t flags, uint8_t seq)
 {
     int pos = 3;    /* 0-1: FCS, 2: seq */
@@ -95,7 +95,7 @@ size_t ieee802154_set_frame_hdr(uint8_t *buf, const uint8_t *src, size_t src_len
     return pos;
 }
 
-size_t ieee802154_get_frame_hdr_len(const uint8_t *mhr)
+size_t ieee802154_get_frame_hdr_len(uint8_t *mhr)
 {
     /* TODO: include security header implications */
     uint8_t tmp;
@@ -134,25 +134,19 @@ size_t ieee802154_get_frame_hdr_len(const uint8_t *mhr)
     return 0;
 }
 
-int ieee802154_get_src(const uint8_t *mhr, uint8_t *src, uint16_t *src_pan)
+int ieee802154_get_src(uint8_t *mhr, uint8_t *src)
 {
     int offset = 3; /* FCF: 0-1, Seq: 2 */
     uint8_t tmp;
 
-    assert((src != NULL) && (src_pan != NULL));
+    assert((src != NULL));
     tmp = mhr[1] & IEEE802154_FCF_DST_ADDR_MASK;
     if (tmp == IEEE802154_FCF_DST_ADDR_SHORT) {
         if (mhr[0] & IEEE802154_FCF_PAN_COMP) {
-            src_pan->u8[0] = mhr[offset];
-            src_pan->u8[1] = mhr[offset + 1];
         }
         offset += 4;
     }
     else if (tmp == IEEE802154_FCF_DST_ADDR_LONG) {
-        if (mhr[0] & IEEE802154_FCF_PAN_COMP) {
-            src_pan->u8[0] = mhr[offset];
-            src_pan->u8[1] = mhr[offset + 1];
-        }
         offset += 10;
     }
     else if (tmp != IEEE802154_FCF_DST_ADDR_VOID) {
@@ -166,8 +160,7 @@ int ieee802154_get_src(const uint8_t *mhr, uint8_t *src, uint16_t *src_pan)
     tmp = mhr[1] & IEEE802154_FCF_SRC_ADDR_MASK;
     if (tmp != IEEE802154_FCF_SRC_ADDR_VOID) {
         if (!(mhr[0] & IEEE802154_FCF_PAN_COMP)) {
-            src_pan->u8[0] = mhr[offset++];
-            src_pan->u8[1] = mhr[offset++];
+
         }
     }
     if (tmp == IEEE802154_FCF_SRC_ADDR_SHORT) {
@@ -190,24 +183,20 @@ int ieee802154_get_src(const uint8_t *mhr, uint8_t *src, uint16_t *src_pan)
     return 0;
 }
 
-int ieee802154_get_dst(const uint8_t *mhr, uint8_t *dst, uint16_t *dst_pan)
+int ieee802154_get_dst(const uint8_t *mhr, uint8_t *dst, le_uint16_t *dst_pan)
 {
     int offset = 3; /* FCF: 0-1, Seq: 2 */
     uint8_t tmp;
 
-    assert((dst != NULL) && (dst_pan != NULL));
+    assert((dst != NULL));
     tmp = mhr[1] & IEEE802154_FCF_DST_ADDR_MASK;
     if (tmp == IEEE802154_FCF_DST_ADDR_SHORT) {
         /* read dst PAN and address in little endian */
-        dst_pan->u8[0] = mhr[offset++];
-        dst_pan->u8[1] = mhr[offset++];
         dst[1] = mhr[offset++];
         dst[0] = mhr[offset++];
         return 2;
     }
     else if (tmp == IEEE802154_FCF_DST_ADDR_LONG) {
-        dst_pan->u8[0] = mhr[offset++];
-        dst_pan->u8[1] = mhr[offset++];
         for (int i = 7; i >= 0; i--) {
             dst[i] = mhr[offset++];
         }
@@ -223,5 +212,6 @@ int ieee802154_get_dst(const uint8_t *mhr, uint8_t *dst, uint16_t *dst_pan)
 
     return 0;
 }
+
 
 /** @} */

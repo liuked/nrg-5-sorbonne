@@ -6,6 +6,7 @@
 #include "ieee802154.h"
 
 #define IEEE802154_MAX_PKT_LEN 127
+#define NGR5_IEEE802154_HDR_LEN 19
 
 #ifndef ETH_P_IEEE802154
 #define ETH_P_IEEE802154 0x00F6
