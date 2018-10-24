@@ -54,7 +54,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	/* Get interface index */
-	strncpy(ifr.ifr_name, "monitor0", IFNAMSIZ);
+	strncpy(ifr.ifr_name, "wpan0", IFNAMSIZ);
 	ret = ioctl(sd, SIOCGIFINDEX, &ifr);
 	if (ret < 0) {
 		perror("ioctl");

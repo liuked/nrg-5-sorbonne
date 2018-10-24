@@ -57,7 +57,7 @@ int main(int argc, char *argv[]) {
 	unsigned char buf[MAX_PACKET_LEN + 1];
 	socklen_t addrlen;
 	/* IEEE 802.15.4 extended address to receive frames on, adapt to your setup */
-	uint8_t long_addr[IEEE802154_ADDR_LEN] = {0xd6, 0x55, 0x2c, 0xd6, 0xe4, 0x1c, 0xeb, 0x57};
+	uint8_t long_addr[IEEE802154_ADDR_LEN] = {0x4e, 0x6a, 0x20, 0x27, 0xe5, 0x03, 0x13, 0x35};
 
 	/* Create IEEE 802.15.4 address family socket for the SOCK_DGRAM type */
 	sd = socket(PF_IEEE802154, SOCK_DGRAM, 0);
