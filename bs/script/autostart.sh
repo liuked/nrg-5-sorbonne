@@ -7,7 +7,7 @@ BS=$NRG5_TOPDIR/bs
 NODEJS=$NRG5_TOPDIR/websocket-io
 
 $BS/script/wifi_adhoc.sh -i wlan0 -f 2412 --ssid nrg5sorbonne &> $RT_PATH/nrg5-log/intf1.log
-$BS/script/wifi_adhoc.sh -i wlan2 -f 2412 --ssid nrg5sorbonne &> $RT_PATH/nrg5-log/intf2.log
+$BS/script/wifi_adhoc.sh -i wlan1 -f 2412 --ssid nrg5sorbonne &> $RT_PATH/nrg5-log/intf2.log
 
 echo "open NRG5 interfaces"
 sleep 5
