@@ -7,6 +7,8 @@ import random
 import threading
 import time
 import struct
+from collections import defaultdict
+from heapq import *
 
 from common.interop import Dptr
 
@@ -37,6 +39,8 @@ class Node:
                     self.o_links.append(l)
             self.i_links = []
             self.dptr = _dptr
+            self.next_in_stop = []
+            self.next_out_stop = []
 
         except AssertionError:
             raise NSOException(STATUS.INVALID_NODE_ID, "ID must be an integer, found {}".format(type(_ID)))
@@ -99,6 +103,18 @@ class Node:
         else:
             logging.warning("No changes made on incoming {:X}<-{:X} (intf {:X})".format(l.end, l.begin, l.intf_idx))
 
+    # def add_next_in_stop(self, dic):    #add node id in next stop list for input link
+    #     self.next_in_stop.append(dic)
+    #
+    # def remove_next_in_stop(self, dic): #remove node id in next stop list
+    #     self.next_in_stop.remove(dic)
+    #
+    # def add_next_out_stop(self, dic):    #add node id in next stop list for output link
+    #     self.next_out_stop.append(dic)
+    #
+    # def remove_next_out_stop(self, dic): #remove node id in next stop list
+    #     self.next_out_stop.remove(dic)
+
 
     def tojson(self, type='full'):
 
@@ -114,6 +130,8 @@ class Node:
                 'n_nbrs': self.M,
                 'o_links': [],
                 'i_links': [],
+                'next_in_stop': json.dumps(self.next_in_stop),
+                'next_out_stop': json.dumps(self.next_out_stop),
                 'base_station': bool(self.bs)
             }
 
@@ -125,6 +143,7 @@ class Node:
 
             for i in self.i_links:
                 r['i_links'].append(i.tojson(type))
+
 
 
         if type == 'netgraph':
@@ -140,6 +159,8 @@ class Node:
                     'interfaces': self.N,
                     'neigbours': self.M,
                     'nbrs_lst': [],
+                    'next_in_stop':json.dumps(self.next_in_stop),
+                    'next_out_stop': json.dumps(self.next_out_stop),
                     'base_station': bool(self.bs)
 
                 }
@@ -148,7 +169,6 @@ class Node:
 
             for i in self.o_links:
                 r['properties']['nbrs_lst'].append(hex(i.end))
-
 
 
         return r
@@ -256,6 +276,10 @@ class TopologyGraph:
         timerThread.daemon = True
         timerThread.start()
 
+    def start_dijkstra_monitor(self):
+        timerThread = threading.Thread(target=self.__dijstra_monitor)
+        timerThread.daemon = True
+        timerThread.start()
     # Acces to graph operations
 
     def isNodeRegistered(self, ID):
@@ -444,6 +468,154 @@ class TopologyGraph:
 
 #TODO: Add dijksta computation
 
+    def __dijstra_monitor(self):
+        next_call = time.time()
+        while True:
+            logging.debug("checking nodes...")
+            # setup next call
+            next_call = next_call + (self.ntup * self.alpha)
+            logging.debug("DijMonitor: waiting for lock")
+            lock.acquire()
+            logging.debug("DijMonitor: lock acquired")
+
+            try:
+                bsid = []   #get bsid list
+                clientid = [] #all clients' id
+                bsid = [key for key in self.nodes if self.nodes[key].bs]
+                clientid = [key for key in self.nodes if not self.nodes[key].bs]
+
+                paths = []  #get all paths
+
+                for base in bsid:
+                    for client in clientid:
+                        paths.append(self.dijkstra_out(base, client)[1])
+
+                        self.update_out_quality(paths[-1])  #update quality every time we find a shortest path for every node in graph
+
+                for path in paths:
+                    for n in self.nodes:
+                        for i in range(0, len(path)-1):
+                            if path[i] == n :
+                                dic = dict()
+                                dic = {path[-1]: path[i+1]}
+                                self.add_next_out_stop(n,dic)
+
+
+                paths_in = []  #get all paths
+
+                for base in bsid:
+                    for client in clientid:
+                        paths_in.append(self.dijkstra_in(base, client)[1])
+                        self.update_in_quality(paths_in[-1])  #update quality every time we find a shortest path for every node in graph
+
+                for path in paths_in:
+                    for n in self.nodes:
+                        for i in range(0, len(path)-1):
+                            if path[i] == n :
+                                dic = dict()
+                                dic = {path[-1]: path[i+1]}
+                                self.add_next_in_stop(n,dic)
+
+            except Exception as x:
+                logging.error(x)
+                raise
+
+            finally:
+                lock.release()
+                logging.debug('TopoMonitor: Released a lock')
+
+            time.sleep(max(0, next_call - time.time()))
+
+
+
+    def dijkstra_out(self, startid, endid):
+        g = defaultdict(list)
+        bsid = startid
+        for key in self.nodes:
+            for link in self.nodes[key].o_links:    #for out link
+                g[link.begin].append((link.lq,link.end))
+
+        logging.debug('g is : '.format(g))
+
+        q, seen, dist = [(0,startid,())], set(), {startid: bsid}
+        while q:
+            (cost,n1,path) = heappop(q)
+            if n1 in seen:
+                continue
+            seen.add(n1)
+            path += (n1,)
+            if n1 == endid:    #reach the end node
+                return (cost, path)
+            for c, n2 in g.get(n1):
+                if n2 in seen:
+                    continue
+                if n2 not in dist or cost+c < dist[n2]:
+                    dist[n2] = cost+c
+                    heappush(q, (cost+c, n2, path))
+
+        return float("inf")
+
+    def dijkstra_in(self, startid, endid):
+        g = defaultdict(list)
+        bsid = startid
+        for key in self.nodes:
+            for link in self.nodes[key].i_links:    #for in link
+                g[link.begin].append((link.lq,link.end))
+
+        q, seen, dist = [(0,startid,())], set(), {startid: bsid}
+        while q:
+            (cost,n1,path) = heappop(q)
+            if n1 in seen:
+                continue
+            seen.add(n1)
+            path += (n1,)
+            if n1 == endid:    #reach the end node
+                return (cost, path)
+            for c, n2 in g.get(n1):
+                if n2 in seen:
+                    continue
+                if n2 not in dist or cost+c < dist[n2]:
+                    dist[n2] = cost+c
+                    heappush(q, (cost+c, n2, path))
+
+        return float("inf")
+
+    def update_out_quality(self, path):
+        if self.__changed:
+            p = list(path)
+            for key in self.nodes:
+                for i in range(0, len(self.nodes[key].o_links)):
+                    if self.nodes[key].o_links[i].begin == p[0] and self.nodes[key].o_links[i].end == p[1] and len(p) > 2:
+                        self.nodes[key].o_links[i].up_lq()
+                        p.pop(0)    # remove the first node
+
+
+    def update_in_quality(self, path):
+        if self.__changed:
+            p = list(path)
+            for key in self.nodes:
+                for i in range(0, len(self.nodes[key].i_links)):
+                    if self.nodes[key].i_links[i].begin == p[0] and self.nodes[key].i_links[i].end == p[1] and len(p) > 2:
+                        self.nodes[key].i_links[i].up_lq()
+                        p.pop(0)    # remove the first node
+
+
+
+    def add_next_in_stop(self, ID,  dic):
+        if self.__changed:
+            self.nodes[ID].next_in_stop.append(dic)
+
+    def add_next_out_stop(self, ID,  dic):
+        if self.__changed:
+            self.nodes[ID].next_out_stop.append(dic)
+
+
+    def remove_next_in_stop(self, ID,  dic):
+        if self.__changed:
+            self.nodes[ID].next_in_stop.remove(dic)
+
+    def remove_next_out_stop(self, ID,  dic):
+        if self.__changed:
+            self.nodes[ID].next_out_stop.remove(dic)
 ### Global variabble for the topology graph
 topo = TopologyGraph()
-
